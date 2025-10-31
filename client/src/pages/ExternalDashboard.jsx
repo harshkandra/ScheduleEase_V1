@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import BookAppointmentModal from "../components/BookAppointmentModal";
 import CancelAppointmentModal from "../components/CancelAppointmentModal";
-import { PlusCircle } from "lucide-react";
+import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal"; // ✅ Added
+import { PlusCircle, CalendarClock, XCircle } from "lucide-react";
 
 export default function ExternalDashboard() {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ export default function ExternalDashboard() {
     },
   ]);
 
+  // Calendar state
   const [slotsMap, setSlotsMap] = useState(() => buildDefaultSlots(new Date()));
   const [viewDate, setViewDate] = useState(new Date());
   const month = viewDate.getMonth();
@@ -82,6 +84,21 @@ export default function ExternalDashboard() {
     );
   };
 
+  // ✅ Reschedule modal
+  const [rescheduleModal, setRescheduleModal] = useState(null);
+  const openRescheduleModal = (appt) => setRescheduleModal(appt);
+  const closeRescheduleModal = () => setRescheduleModal(null);
+  const handleRescheduleConfirm = ({ id, datetime }) => {
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? { ...a, datetime: new Date(datetime).toISOString(), status: "Pending" }
+          : a
+      )
+    );
+    closeRescheduleModal();
+  };
+
   // Enforce 2-day booking rule
   const minDate = new Date();
   minDate.setDate(minDate.getDate() + 2);
@@ -121,15 +138,20 @@ export default function ExternalDashboard() {
               <PlusCircle /> Book New Appointment
             </button>
             <button
+              onClick={() =>
+                appointments.length
+                  ? openRescheduleModal(appointments[0])
+                  : alert("No appointments to reschedule")
+              }
               className="flex items-center justify-center gap-2 py-3 rounded-lg font-medium bg-white border border-gray-300 text-gray-700 hover:border-blue-400 transition-all"
             >
-              Reschedule Appointment
+              <CalendarClock /> Reschedule Appointment
             </button>
             <button
               onClick={() => openCancelModal(appointments[0])}
               className="flex items-center justify-center gap-2 py-3 rounded-lg font-medium bg-white border border-gray-300 text-gray-700 hover:border-rose-400 transition-all"
             >
-              Cancel Appointment
+              <XCircle /> Cancel Appointment
             </button>
           </div>
         </section>
@@ -173,14 +195,14 @@ export default function ExternalDashboard() {
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => alert("View details demo")}
-                          className="text-xs px-2 py-1 border rounded"
+                          onClick={() => openRescheduleModal(a)} // ✅ Opens reschedule modal
+                          className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
                         >
-                          View
+                          Reschedule
                         </button>
                         <button
                           onClick={() => openCancelModal(a)}
-                          className="text-xs px-2 py-1 border rounded"
+                          className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
                         >
                           Cancel
                         </button>
@@ -308,11 +330,11 @@ export default function ExternalDashboard() {
       </main>
 
       {/* Modals */}
-      {modalPrefill !== false && (
+      {modalPrefill && (
         <BookAppointmentModal
           role="External User"
-          defaultDate={modalPrefill.date || ""}
-          defaultTime={modalPrefill.time || ""}
+          defaultDate={modalPrefill.date}
+          defaultTime={modalPrefill.time}
           onClose={closeModal}
           onSubmit={addAppointment}
         />
@@ -323,6 +345,15 @@ export default function ExternalDashboard() {
           appointment={cancelModal}
           onClose={closeCancelModal}
           onConfirm={handleCancelConfirm}
+        />
+      )}
+
+      {/* ✅ Reschedule Modal */}
+      {rescheduleModal && (
+        <RescheduleAppointmentModal
+          appointment={rescheduleModal}
+          onClose={closeRescheduleModal}
+          onConfirm={handleRescheduleConfirm}
         />
       )}
     </div>
