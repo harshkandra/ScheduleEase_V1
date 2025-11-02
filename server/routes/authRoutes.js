@@ -1,8 +1,22 @@
-import express from "express";
-import { loginUser } from "../controllers/authController.js";
+// server/routes/authRoutes.js
+const passport = require('passport');
 
-const router = express.Router();
+module.exports = app => {
+  app.get(
+    '/auth/google',
+    passport.authenticate('google', {
+      scope: ['profile', 'email']
+    })
+  );
 
-router.post("/login", loginUser);
+  app.get('/auth/google/callback', passport.authenticate('google'));
 
-export default router;
+  app.get('/api/logout', (req, res) => {
+    req.logout();
+    res.send(req.user);
+  });
+
+  app.get('/api/current_user', (req, res) => {
+    res.send(req.user);
+  });
+};

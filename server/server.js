@@ -1,33 +1,29 @@
 import express from "express";
 import dotenv from "dotenv";
-import cors from "cors";
 import { connectDB } from "./config/db.js";
-import authRoutes from "./routes/authRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
+import slotRoutes from "./routes/slotRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 dotenv.config();
-
-const app = express();
-
-// ✅ Enable CORS (frontend on Vite runs on port 5173)
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true,
-}));
-
-// ✅ Middleware to parse JSON bodies
-app.use(express.json());
-
-// ✅ Connect to MongoDB (local)
 connectDB();
 
-// ✅ Routes
-app.use("/api/auth", authRoutes);
-app.use("/api/appointments", appointmentRoutes);
+const app = express();
+app.use(express.json());
 
-// ✅ Start the server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+// routes
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/slots", slotRoutes);
+app.use("/api/users", userRoutes);
+
+// health
+app.get("/", (req, res) => res.send("NITC Appointments Backend is running"));
+
+// error handler
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ message: err.message });
 });
 
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

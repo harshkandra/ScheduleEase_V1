@@ -1,14 +1,18 @@
 import mongoose from "mongoose";
 
 export const connectDB = async () => {
+  const uri = process.env.MONGO_URI;
+  if (!uri) {
+    console.error("MONGO_URI not set in .env");
+    process.exit(1);
+  }
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+    const conn = await mongoose.connect(uri, {
+      // options are optional with mongoose v7+
     });
-    console.log("✅ Connected to local MongoDB");
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error("❌ MongoDB connection failed:", error.message);
+    console.error(`DB connection error: ${error.message}`);
     process.exit(1);
   }
 };
