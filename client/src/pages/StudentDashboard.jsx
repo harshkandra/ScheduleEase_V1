@@ -127,6 +127,28 @@ export default function StudentDashboard() {
   const nextMonth = () =>
     setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
+<<<<<<< HEAD
+=======
+    const handleLogout = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include", // ✅ important so cookies are sent to backend
+      });
+
+      if (res.ok) {
+        console.log("Logout successful");
+        navigate("/login"); // ✅ redirect to login AFTER backend logout
+      } else {
+        const data = await res.json();
+        console.error("Logout failed:", data.message);
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
+
+>>>>>>> integration/adithya
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -137,7 +159,11 @@ export default function StudentDashboard() {
             <p className="text-xs text-gray-500">Student Dashboard</p>
           </div>
           <button
+<<<<<<< HEAD
             onClick={() => navigate("/login")}
+=======
+            onClick={handleLogout}
+>>>>>>> integration/adithya
             className="border border-gray-300 text-sm px-3 py-1 rounded-md hover:bg-gray-50"
           >
             Logout

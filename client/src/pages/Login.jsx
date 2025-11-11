@@ -1,35 +1,26 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+
 export default function Login() {
   const [selectedRole, setSelectedRole] = useState(null);
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-  });
 
   const navigate = useNavigate();
 
-  const handleSelectRole = (role) => {
-    setSelectedRole(role);
-  };
+  const handleOAuthLogin = (role) => {
+  window.location.href = `http://localhost:5000/api/auth/google?role=${role}`;
+};
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleext = () => {
+  navigate("/external");
+};
+  const handleint = () => {
+  navigate("/student");
+};
+  const handleadm = () => {
+  navigate("/admin");
+};
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-
-    if (selectedRole === "student") navigate("/student");
-    else if (selectedRole === "external") navigate("/external");
-    else if (selectedRole === "admin") navigate("/admin");
-    else alert("Please select an account type first!");
-  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-500 to-teal-400 px-4">
@@ -53,22 +44,33 @@ export default function Login() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-gray-800">SchedulEase</h1>
-          <p className="text-sm text-gray-500">Director's Office Administration</p>
+          <p className="text-sm text-gray-500">
+            Director's Office Administration
+          </p>
         </div>
 
         {/* Role Selection */}
         <div className="space-y-3">
-          <p className="text-center text-gray-700 font-semibold">Welcome Back</p>
+          <p className="text-center text-gray-700 font-semibold">
+            Welcome Back
+          </p>
           <p className="text-center text-gray-500 text-sm">
-            Choose your account type and sign in
+            Choose your account type to sign in with Google
           </p>
 
           <div className="space-y-3 mt-4">
             {/* NITC User */}
             <button
+<<<<<<< HEAD
               onClick={() => handleSelectRole("student")}
               className={`w-full border flex items-center justify-between px-4 py-3 rounded-xl transition ${
                 selectedRole === "student"
+=======
+              onClick={() => handleOAuthLogin("internal user")}
+              //onClick={handleint}
+              className={`w-full border flex items-center justify-between px-4 py-3 rounded-xl transition ${
+                selectedRole === "internal user"
+>>>>>>> integration/adithya
                   ? "border-blue-500 bg-blue-50"
                   : "border-gray-300 hover:border-blue-400"
               }`}
@@ -77,14 +79,27 @@ export default function Login() {
                 <span className="text-blue-500 font-semibold">👤</span>
                 <span>NITC User</span>
               </span>
+<<<<<<< HEAD
               <span className="text-xs text-gray-500">Auto-approved appointments</span>
+=======
+              <span className="text-xs text-gray-500">
+                Auto-approved appointments
+              </span>
+>>>>>>> integration/adithya
             </button>
 
             {/* External User */}
             <button
+<<<<<<< HEAD
               onClick={() => handleSelectRole("external")}
               className={`w-full border flex items-center justify-between px-4 py-3 rounded-xl transition ${
                 selectedRole === "external"
+=======
+              onClick={() => handleOAuthLogin("external user")}
+              //onClick={handleext}
+              className={`w-full border flex items-center justify-between px-4 py-3 rounded-xl transition ${
+                selectedRole === "external user"
+>>>>>>> integration/adithya
                   ? "border-green-500 bg-green-50"
                   : "border-gray-300 hover:border-green-400"
               }`}
@@ -93,12 +108,23 @@ export default function Login() {
                 <span className="text-green-500 font-semibold">🌐</span>
                 <span>External User</span>
               </span>
+<<<<<<< HEAD
               <span className="text-xs text-gray-500">Book 2 days in advance</span>
+=======
+              <span className="text-xs text-gray-500">
+                Book 2 days in advance
+              </span>
+>>>>>>> integration/adithya
             </button>
 
             {/* Administrator */}
             <button
+<<<<<<< HEAD
               onClick={() => handleSelectRole("admin")}
+=======
+              onClick={() => handleOAuthLogin("admin")}
+              //onClick={handleadm}
+>>>>>>> integration/adithya
               className={`w-full border flex items-center justify-between px-4 py-3 rounded-xl transition ${
                 selectedRole === "admin"
                   ? "border-yellow-500 bg-yellow-50"
@@ -115,6 +141,7 @@ export default function Login() {
             </button>
           </div>
         </div>
+<<<<<<< HEAD
 
         {/* Conditional Input Fields */}
         {selectedRole && (
@@ -177,6 +204,8 @@ export default function Login() {
           />
           <span className="text-gray-600 font-medium">Continue with Google</span>
         </button>
+=======
+>>>>>>> integration/adithya
       </div>
     </div>
   );

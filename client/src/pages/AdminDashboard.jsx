@@ -97,6 +97,28 @@ export default function AdminDashboard() {
     },
   ];
 
+<<<<<<< HEAD
+=======
+    const handleLogout = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include", // ✅ important so cookies are sent to backend
+      });
+
+      if (res.ok) {
+        console.log("Logout successful");
+        navigate("/login"); // ✅ redirect to login AFTER backend logout
+      } else {
+        const data = await res.json();
+        console.error("Logout failed:", data.message);
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
+
+>>>>>>> integration/adithya
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -113,7 +135,11 @@ export default function AdminDashboard() {
             Administrator
           </span>
           <button
+<<<<<<< HEAD
             onClick={() => navigate("/login")}
+=======
+            onClick={handleLogout}
+>>>>>>> integration/adithya
             className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition"
           >
             <LogOut size={16} />

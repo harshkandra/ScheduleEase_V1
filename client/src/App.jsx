@@ -6,6 +6,13 @@ import Register from "./pages/Register";
 import ExternalDashboard from "./pages/ExternalDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+<<<<<<< HEAD
+=======
+import AuthSuccess from "./pages/AuthSuccess";
+import { LogOut } from "lucide-react";
+
+
+>>>>>>> integration/adithya
 
 export default function App() {
   return (
@@ -16,6 +23,11 @@ export default function App() {
       <Route path="/external" element={<ExternalDashboard />} />
       <Route path="/student" element={<StudentDashboard />} />
       <Route path="/admin" element={<AdminDashboard />} />
+<<<<<<< HEAD
+=======
+      <Route path="/auth/success" element={<AuthSuccess />} />
+      
+>>>>>>> integration/adithya
     </Routes>
   );
 }

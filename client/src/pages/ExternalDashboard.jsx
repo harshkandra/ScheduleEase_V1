@@ -4,10 +4,44 @@ import BookAppointmentModal from "../components/BookAppointmentModal";
 import CancelAppointmentModal from "../components/CancelAppointmentModal";
 import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal"; // ✅ Added
 import { PlusCircle, CalendarClock, XCircle } from "lucide-react";
+<<<<<<< HEAD
+=======
+import { useEffect } from "react";
+
+
+// import AppointmentsList from "../components/AppointmentsList";
+
+// export default function ExternalDashboard() {
+//   return (
+//     <div className="min-h-screen bg-gray-50">
+//       <div className="max-w-4xl mx-auto py-8">
+//         <AppointmentsList />
+//       </div>
+//     </div>
+//   );
+
+
+>>>>>>> integration/adithya
 
 export default function ExternalDashboard() {
   const navigate = useNavigate();
 
+<<<<<<< HEAD
+=======
+  useEffect(() => {
+    fetch("http://localhost:5000/api/auth/me", {
+      credentials: "include",
+    })
+      .then(res => {
+        if (!res.ok) {
+          // not logged in — redirect to login page
+          navigate("/login");
+        }
+      })
+      .catch(() => navigate("/login"));
+  }, [navigate]);
+
+>>>>>>> integration/adithya
   // Mock appointments
   const [appointments, setAppointments] = useState([
     {
@@ -104,6 +138,45 @@ export default function ExternalDashboard() {
   minDate.setDate(minDate.getDate() + 2);
   const minDateISO = minDate.toISOString().slice(0, 10);
 
+<<<<<<< HEAD
+=======
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include", // ✅ important so cookies are sent to backend
+      });
+
+      if (res.ok) {
+        console.log("Logout successful");
+        navigate("/login"); // ✅ redirect to login AFTER backend logout
+      } else {
+        const data = await res.json();
+        console.error("Logout failed:", data.message);
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
+
+//   router.get("/logout", (req, res, next) => {
+//   console.log("GET logout endpoint hit ✅");
+//   req.logout(err => {
+//     if (err) return next(err);
+
+//     req.session.destroy(() => {
+//       res.clearCookie("connect.sid", {
+//         httpOnly: true,
+//         sameSite: "lax",
+//         secure: false,
+//         path: "/",
+//       });
+//       res.redirect("http://localhost:5173/login"); // ✅ redirect directly from backend
+//     });
+//   });
+// });
+
+>>>>>>> integration/adithya
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Bar */}
@@ -118,7 +191,11 @@ export default function ExternalDashboard() {
               External User
             </span>
             <button
+<<<<<<< HEAD
               onClick={() => navigate("/login")}
+=======
+              onClick={handleLogout}
+>>>>>>> integration/adithya
               className="bg-white border px-3 py-1 rounded-md text-sm hover:bg-gray-50"
             >
               Logout
