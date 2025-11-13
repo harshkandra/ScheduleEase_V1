@@ -47,134 +47,93 @@ export default function StudentDashboard() {
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // --- Refresh functions (call anytime to reload everything) ---
+const refreshSlots = async () => {
+  try {
+    const res = await fetch("http://localhost:5000/api/slots", {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    const grouped = {};
+    data.forEach((s) => {
+      const d = s.date;
+      if (!grouped[d]) grouped[d] = [];
+      grouped[d].push({
+        id: s._id || s.id,
+        timeStart: s.timeStart,
+        timeEnd: s.timeEnd,
+        isBooked: !!(s.isBooked || s.is_booked),
+        date: s.date,
+        raw: s,
+      });
+    });
+
+    setSlotsMap(grouped);
+  } catch (err) {
+    console.error("Refresh slots error:", err);
+  }
+};
+
+const refreshAppointments = async () => {
+  try {
+    const res = await fetch("http://localhost:5000/api/appointments?mine=true", {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const mapped = data.map((a) => {
+      const statusStr = (a.status || "").toString();
+      let slotInfo = null;
+
+      if (a.slot && typeof a.slot === "object") {
+        slotInfo = {
+          id: a.slot._id || a.slot.id,
+          date: a.slot.date,
+          timeStart: a.slot.timeStart,
+          timeEnd: a.slot.timeEnd,
+          isBooked: !!(a.slot.isBooked || a.slot.is_booked),
+        };
+      }
+
+      const datetime =
+        slotInfo && slotInfo.date && slotInfo.timeStart
+          ? `${slotInfo.date}T${slotInfo.timeStart}:00.000Z`
+          : a.datetime || new Date().toISOString();
+
+      return {
+        id: a._id,
+        title: a.title,
+        desc: a.description,
+        datetime,
+        status: statusStr.charAt(0).toUpperCase() + statusStr.slice(1),
+        raw: a,
+        slot: slotInfo,
+      };
+    });
+
+    const approved = mapped.filter(
+      (m) => String(m.status || "").toLowerCase() === "approved"
+    );
+
+    setAppointments(approved);
+  } catch (err) {
+    console.error("Refresh appointments error:", err);
+  }
+};
+
 
   // --- Load slots from backend and build slotsMap ---
-  useEffect(() => {
-    let mounted = true;
-    const loadSlots = async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/slots", {
-          method: "GET",
-          credentials: "include",
-        });
-        if (!res.ok) {
-          console.error("Failed to fetch slots:", res.status);
-          return;
-        }
-        const data = await res.json();
-        // group by date
-        const grouped = {};
-        data.forEach((s) => {
-          const d = s.date;
-          if (!grouped[d]) grouped[d] = [];
-          grouped[d].push({
-            id: s._id || s.id,
-            timeStart: s.timeStart,
-            timeEnd: s.timeEnd,
-            isBooked: !!(s.isBooked || s.is_booked),
-            date: s.date,
-            raw: s,
-          });
-        });
-        if (mounted) setSlotsMap(grouped);
-      } catch (err) {
-        console.error("Error loading slots:", err);
-      }
-    };
-    loadSlots();
-    return () => { mounted = false; };
-  }, []);
+ useEffect(() => {
+  refreshSlots();
+  refreshAppointments();
+}, []);
 
-  // --- Load the current user's appointments (mine=true) and keep only "approved" ---
-  useEffect(() => {
-    let mounted = true;
-    const loadAppointments = async () => {
-      try {
-        // adjust URL if your backend uses a different path, e.g. /api/appointments/me
-        const res = await fetch("http://localhost:5000/api/appointments?mine=true", {
-          method: "GET",
-          credentials: "include",
-          headers: { "Accept": "application/json" },
-        });
-        if (!res.ok) {
-          console.warn("Failed to fetch appointments:", res.status);
-          return;
-        }
-        const data = await res.json();
-        if (!Array.isArray(data)) {
-          console.warn("Appointments API returned non-array:", data);
-          return;
-        }
-
-        // Map each appointment to UI shape, attempt slot resolution
-        const mapped = data.map((a) => {
-          // appointment.status is string e.g. "approved"
-          const statusStr = (a.status || "").toString();
-          // Determine slot info:
-          let slotInfo = null;
-          if (a.slot && typeof a.slot === "object" && (a.slot.date || a.slot.timeStart || a.slot.timeEnd)) {
-            // populated slot object
-            slotInfo = {
-              id: a.slot._id || a.slot.id,
-              date: a.slot.date,
-              timeStart: a.slot.timeStart,
-              timeEnd: a.slot.timeEnd,
-              isBooked: !!(a.slot.isBooked || a.slot.is_booked),
-            };
-          } else if (a.slot) {
-            // slot is likely an id -> lookup from slotsMap (we might not have loaded slots yet)
-            const slotIdStr = (a.slot && (a.slot._id || a.slot))?.toString();
-            // search slotsMap for id
-            let found = null;
-            for (const d of Object.keys(slotsMap)) {
-              const arr = slotsMap[d];
-              const f = arr.find((it) => it.id?.toString() === slotIdStr);
-              if (f) { found = f; break; }
-            }
-            if (found) {
-              slotInfo = {
-                id: found.id,
-                date: found.date,
-                timeStart: found.timeStart,
-                timeEnd: found.timeEnd,
-                isBooked: found.isBooked,
-              };
-            } else {
-              // fallback: leave slot null, UI will show generic datetime if present on appointment otherwise unknown
-              slotInfo = null;
-            }
-          }
-
-          // Build UI appointment
-          const datetime = slotInfo && slotInfo.date && slotInfo.timeStart
-            ? `${slotInfo.date}T${slotInfo.timeStart}:00.000Z`
-            : a.datetime || a.dateTime || new Date().toISOString();
-
-          return {
-            id: a._id || a.id,
-            title: a.title || "Appointment",
-            desc: a.description || "",
-            datetime,
-            status: statusStr ? (statusStr.charAt(0).toUpperCase() + statusStr.slice(1)) : "Pending",
-            raw: a,
-            slot: slotInfo,
-          };
-        });
-
-        // filter approved only (case-insensitive)
-        const approved = mapped.filter((m) => String(m.status || "").toLowerCase() === "approved");
-
-        if (mounted) setAppointments(approved);
-      } catch (err) {
-        console.error("Error fetching appointments:", err);
-      }
-    };
-
-    loadAppointments();
-    return () => { mounted = false; };
-    // Note: not including slotsMap in deps; if slotsMap is loaded later it won't re-map appointments.
-    // That's okay because appointment slot lookup is best done server-side (preferably populate slot in backend).
-  }, []);
 
   // --- Handlers ---
   const openModal = (pref = { slot: null }) => setModalPrefill(pref);
@@ -185,16 +144,34 @@ export default function StudentDashboard() {
     setShowCancelModal(true);
   };
 
-  const handleConfirmCancel = ({ id, reason }) => {
-    setAppointments((prev) =>
-      prev.map((a) =>
-        a.id === id ? { ...a, status: "Cancelled", reason: reason || "" } : a
-      )
+  const handleConfirmCancel = async ({ id, reason }) => {
+  try {
+    console.log("DEBUG: sending cancel request for", id);
+
+    const res = await axios.delete(
+      `http://localhost:5000/api/appointments/${id}`,
+      {
+        data: { reason },          // axios allows body in DELETE
+        withCredentials: true      // MOST IMPORTANT
+      }
     );
-  };
+
+    // Remove from UI
+  await refreshAppointments();
+await refreshSlots();
+
+    alert("Appointment cancelled successfully!");
+  } catch (err) {
+    console.error("Cancel error:", err);
+    alert(err.response?.data?.message || "Failed to cancel appointment");
+  }
+};
+
+
+
 
   // Add appointment to UI (only if approved)
-  const addAppointment = (appt) => {
+  const addAppointment = async(appt) => {
     const created = {
       id: appt._id || appt.id || "ap" + Math.random().toString(36).slice(2, 9),
       title: appt.title || appt.purpose || "Appointment",
@@ -212,16 +189,12 @@ export default function StudentDashboard() {
     } else {
       console.log("New appointment not approved yet; not added to approved list.");
     }
+  // After backend creates the appointment, just reload everything fresh
+  await refreshAppointments();
+  await refreshSlots();
 
-    // Remove the booked time from local slotsMap if date/time known
-    const dateISO = (created.datetime || "").slice(0, 10) || (created.slot && created.slot.date) || "";
-    const time = (created.datetime || "").slice(11, 16) || (created.slot && created.slot.timeStart) || "";
-    if (dateISO && time) {
-      setSlotsMap((prev) => {
-        const arr = prev[dateISO]?.filter((t) => t.timeStart !== time) || [];
-        return { ...prev, [dateISO]: arr };
-      });
-    }
+
+
   };
 
   const handleRescheduleClick = (appointment) => {
@@ -243,11 +216,8 @@ export default function StudentDashboard() {
 
 
     // Update UI
-    setAppointments((prev) =>
-      prev.map((a) =>
-        a._id === appointmentId ? res.data : a
-      )
-    );
+   await refreshAppointments();
+  await refreshSlots();
 
     setShowRescheduleModal(false);
     alert("Appointment rescheduled!");
@@ -266,8 +236,16 @@ export default function StudentDashboard() {
     }
   };
 
-  const prevMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-  const nextMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+const prevMonth = () => {
+  setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  refreshSlots();
+};
+
+const nextMonth = () => {
+  setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  refreshSlots();
+};
+
 
   const handleLogout = async () => {
     try {
@@ -287,6 +265,7 @@ export default function StudentDashboard() {
       console.error("Logout error:", err);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50">

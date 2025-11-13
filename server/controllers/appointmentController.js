@@ -80,12 +80,11 @@ export const getAppointmentById = async (req, res) => {
     if (!appt || appt.is_deleted)
       return res.status(404).json({ message: "Not found" });
 
-    if (
-      req.user.role !== "admin" &&
-      String(appt.user._id) !== String(req.user._id)
-    ) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+    if (req.user.role !== "admin" &&
+    String(appt.user._id) !== String(req.user._id)) {
+  return res.status(403).json({ message: "Forbidden" });
+}
+
 
     res.json(appt);
   } catch (err) {
@@ -101,12 +100,11 @@ export const updateAppointment = async (req, res) => {
     if (!appt || appt.is_deleted)
       return res.status(404).json({ message: "Not found" });
 
-    if (
-      req.user.role !== "admin" &&
-      String(appt.user) !== String(req.user._id)
-    ) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+    if (req.user.role !== "admin" &&
+    String(appt.user) !== String(req.user._id)) {
+  return res.status(403).json({ message: "Forbidden" });
+}
+
 
     const { title, description } = req.body;
     if (title) appt.title = title;
@@ -131,13 +129,17 @@ export const deleteAppointment = async (req, res) => {
   try {
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ message: "Not found" });
+    console.log("🟦 CANCEL DEBUG ----");
+    console.log("Requester user:", req.user);
+    console.log("Appointment user:", appt.user);
+    console.log("Admin?", req.user.role);
+    console.log("User match?", String(appt.user) === String(req.user._id));
 
-    if (
-      req.user.role !== "admin" &&
-      String(appt.user) !== String(req.user._id)
-    ) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
+    if (req.user.role !== "admin" &&
+    String(appt.user) !== String(req.user._id)) {
+  return res.status(403).json({ message: "Forbidden" });
+}
+
 
     const slot = await Slot.findById(appt.slot);
     if (slot) {
@@ -161,7 +163,8 @@ export const deleteAppointment = async (req, res) => {
 export const updateAppointmentStatus = async (req, res) => {
   try {
     if (req.user.role !== "admin")
-      return res.status(403).json({ message: "Admin only" });
+  return res.status(403).json({ message: "Admin only" });
+
 
     const { status } = req.body;
     if (!["approved", "rejected"].includes(status))

@@ -8,7 +8,7 @@ import {
   deleteAppointment,
   updateAppointmentStatus
 } from "../controllers/appointmentController.js";
-import { mockAuth } from "../middleware/mockAuth.js";
+
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.patch("/:id/reschedule", ensureAuthenticated, rescheduleAppointment);
 
 
 
-router.use(mockAuth);
+
 
 // router.route("/")
 //   .get(getAppointments)

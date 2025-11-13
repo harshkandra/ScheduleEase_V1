@@ -7,7 +7,7 @@ import cors from "cors"; // ✅ Add this import
 import { connectDB } from "./config/db.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import slotRoutes from "./routes/slotRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
+
 import authRoutes from "./routes/authRoutes.js";
 import "./config/passport.js"; // 👈 load passport config
 
@@ -77,7 +77,7 @@ app.use(passport.session());
 // ✅ Routes (AFTER passport + CORS)
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/slots", slotRoutes);
-app.use("/api/users", userRoutes);
+
 app.use("/api/auth", authRoutes);
 
 // ✅ Health check
