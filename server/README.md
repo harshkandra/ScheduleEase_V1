@@ -14,6 +14,6 @@
    ```
 5. For testing without auth, include these headers in requests:
    - `x-user-id`: any string (will be used to create a temporary user if not found)
-   - `x-user-role`: one of `internal`, `external`, `admin`
+   - `x-user-role`: one of `internal user`, `external user`, `admin`
 
 This backend uses a simple mock auth middleware for testing. Replace with real auth (JWT/OAuth) later.

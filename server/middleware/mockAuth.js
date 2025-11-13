@@ -11,7 +11,7 @@ import User from "../models/User.js";
 export const mockAuth = async (req, res, next) => {
   try {
     const headerId = req.header("x-user-id");
-    const headerRole = req.header("x-user-role") || "internal";
+    const headerRole = req.header("x-user-role") || "internal user";
 
     // If no headerId provided, create a temp anonymous external user (for testing)
     const email = headerId ? String(headerId) : `temp_${Date.now()}@example.com`;

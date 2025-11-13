@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+
 import session from "express-session";
 import passport from "passport";
 import cors from "cors"; // ✅ Add this import
@@ -21,14 +22,16 @@ connectDB();
 const app = express();
 
 // ✅ CORS middleware must come BEFORE session + routes
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // ✅ your React frontend
-    credentials: true,               // ✅ allow cookies / sessions
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: "http://localhost:5173",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+app.options("*", cors());
 
 app.use(
   session({

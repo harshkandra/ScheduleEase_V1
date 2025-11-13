@@ -1,14 +1,22 @@
+// src/components/RescheduleAppointmentModal.jsx
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 
+/**
+ * Props:
+ * - appointment: object (the appointment being rescheduled). Expect appointment.id or appointment._id and appointment.datetime
+ * - availableSlots: object mapping date "YYYY-MM-DD" -> [{ id, timeStart, timeEnd, isBooked, date, raw }]
+ * - onClose: () => void
+ * - onConfirm: ({ appointmentId, slotId }) => void
+ */
 export default function RescheduleAppointmentModal({
   appointment,
   availableSlots = {},
-  onClose,
-  onConfirm,
+  onClose = () => {},
+  onConfirm = () => {},
 }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   useEffect(() => {
@@ -16,7 +24,13 @@ export default function RescheduleAppointmentModal({
       const d = new Date(appointment.datetime);
       setSelectedDate(d);
       setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+    } else if (appointment?.slot?.date) {
+      // If appointment has slot object with date/time, prefer that.
+      const d = new Date(`${appointment.slot.date}T${appointment.slot.timeStart}:00`);
+      setSelectedDate(d);
+      setCurrentMonth(new Date(d.getFullYear(), d.getMonth(), 1));
     }
+    setSelectedSlotId(null);
   }, [appointment]);
 
   const monthNames = [
@@ -25,36 +39,47 @@ export default function RescheduleAppointmentModal({
   ];
 
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const handlePrevMonth = () => {
-    setCurrentMonth(new Date(year, month - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentMonth(new Date(year, month + 1, 1));
-  };
+  const handlePrevMonth = () => setCurrentMonth(new Date(year, month - 1, 1));
+  const handleNextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
 
   const handleDayClick = (day) => {
-    setSelectedDate(new Date(year, month, day));
-    setSelectedTime(null);
+    const d = new Date(year, month, day);
+    setSelectedDate(d);
+    setSelectedSlotId(null);
   };
 
   const dateISO = selectedDate.toISOString().slice(0, 10);
-  const times = availableSlots[dateISO] || [
-    { time: "09:00", duration: "30 min", booked: false },
-    { time: "10:00", duration: "60 min", booked: false },
-    { time: "11:00", duration: "30 min", booked: true },
-    { time: "14:00", duration: "30 min", booked: false },
-    { time: "15:00", duration: "60 min", booked: false },
-  ];
+
+  // Normalize available slots for this date to objects of shape:
+  // { id, timeStart, timeEnd, isBooked, date, raw }
+  const times = (availableSlots[dateISO] || []).map((s) => {
+    // support both { id, _id } and possible raw fields name differences
+    return {
+      id: s.id || s._id || (s.raw && (s.raw._id || s.raw.id)) || null,
+      timeStart: s.timeStart || s.start || (s.raw && s.raw.timeStart) || "-",
+      timeEnd: s.timeEnd || s.end || (s.raw && s.raw.timeEnd) || "-",
+      isBooked: !!(s.isBooked || s.is_booked || (s.raw && (s.raw.isBooked || s.raw.is_booked))),
+      date: s.date || (s.raw && s.raw.date) || dateISO,
+      raw: s.raw || s,
+    };
+  });
+
+  // When month changes, clear selected slot/time
+  useEffect(() => {
+    setSelectedSlotId(null);
+  }, [currentMonth]);
+
+  const selectedSlot = times.find((t) => String(t.id) === String(selectedSlotId)) || null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white w-full max-w-3xl rounded-xl shadow-lg overflow-hidden animate-fadeIn">
+      <div className="bg-white w-full max-w-3xl rounded-xl shadow-lg overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-800">Reschedule Appointment</h2>
@@ -72,20 +97,19 @@ export default function RescheduleAppointmentModal({
               <p className="text-gray-700 mt-1">
                 Date:{" "}
                 <span className="font-semibold">
-                  {new Date(appointment?.datetime).toLocaleDateString()}
+                  {appointment?.datetime ? new Date(appointment.datetime).toLocaleDateString() : (appointment?.slot?.date || "-")}
                 </span>
               </p>
               <p className="text-gray-700">
                 Time:{" "}
                 <span className="font-semibold">
-                  {new Date(appointment?.datetime).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {appointment?.datetime
+                    ? new Date(appointment.datetime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                    : appointment?.slot ? `${appointment.slot.timeStart} - ${appointment.slot.timeEnd}` : "-"}
                 </span>
               </p>
               <p className="text-gray-700">
-                Purpose: <span className="font-semibold">{appointment?.title}</span>
+                Purpose: <span className="font-semibold">{appointment?.title || "-"}</span>
               </p>
             </div>
 
@@ -119,21 +143,26 @@ export default function RescheduleAppointmentModal({
                 {Array.from({ length: firstDay }).map((_, i) => (
                   <div key={`empty-${i}`} className="h-8" />
                 ))}
+
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
                   const isSelected =
                     selectedDate.getDate() === day &&
                     selectedDate.getMonth() === month &&
                     selectedDate.getFullYear() === year;
+
+                  // mark days that have slots (optional visual cue)
+                  const iso = new Date(year, month, day).toISOString().slice(0, 10);
+                  const hasSlots = Array.isArray(availableSlots[iso]) && availableSlots[iso].length > 0;
+
                   return (
                     <button
                       key={day}
                       onClick={() => handleDayClick(day)}
-                      className={`h-8 w-8 flex items-center justify-center rounded-full mx-auto ${
-                        isSelected
-                          ? "bg-blue-500 text-white"
-                          : "hover:bg-gray-100 text-gray-700"
-                      }`}
+                      className={`h-8 w-8 flex items-center justify-center rounded-full mx-auto
+                        ${isSelected ? "bg-blue-500 text-white" : "hover:bg-gray-100 text-gray-700"}
+                      `}
+                      title={hasSlots ? `${availableSlots[iso].length} slot(s)` : "No slots"}
                     >
                       {day}
                     </button>
@@ -143,35 +172,38 @@ export default function RescheduleAppointmentModal({
             </div>
           </div>
 
-          {/* Right: Time slots */}
+          {/* Right: Time slots for selectedDate */}
           <div>
             <h3 className="text-sm font-medium text-gray-600 mb-2">
-              Available Times -{" "}
-              <span className="font-semibold">
-                {selectedDate.toLocaleDateString()}
-              </span>
+              Available Times - <span className="font-semibold">{selectedDate.toLocaleDateString()}</span>
             </h3>
+
             <div className="border rounded-lg p-3 h-80 overflow-y-auto space-y-2">
-              {times.map((slot, idx) => (
-                <button
-                  key={idx}
-                  disabled={slot.booked}
-                  onClick={() => setSelectedTime(slot.time)}
-                  className={`flex justify-between items-center w-full text-left px-3 py-2 rounded border ${
-                    slot.booked
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                      : selectedTime === slot.time
-                      ? "bg-blue-50 border-blue-400 text-blue-700"
-                      : "hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="font-medium">{slot.time}</span>
-                  <span className="text-xs text-gray-500">
-                    {slot.duration} •{" "}
-                    {slot.booked ? "Booked" : "Available"}
-                  </span>
-                </button>
-              ))}
+              {times.length === 0 ? (
+                <div className="text-sm text-gray-500">No slots available for this date</div>
+              ) : (
+                times.map((slot, idx) => (
+                  <button
+                    key={String(slot.id || idx)}
+                    disabled={slot.isBooked}
+                    onClick={() => !slot.isBooked && setSelectedSlotId(slot.id)}
+                    className={`flex justify-between items-center w-full text-left px-3 py-2 rounded border
+                      ${slot.isBooked
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
+                        : selectedSlotId && String(selectedSlotId) === String(slot.id)
+                        ? "bg-blue-50 border-blue-400 text-blue-700"
+                        : "hover:bg-gray-50"
+                      }`}
+                  >
+                    <span className="font-medium">
+                      {slot.timeStart} — {slot.timeEnd}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {slot.isBooked ? "Booked" : "Available"}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -184,20 +216,17 @@ export default function RescheduleAppointmentModal({
           >
             Cancel
           </button>
+
           <button
             onClick={() =>
               onConfirm({
-                id: appointment.id,
-                newDate: selectedDate.toISOString(),
-                newTime: selectedTime,
+                appointmentId: appointment?._id || appointment?.id,
+                slotId: selectedSlotId,
               })
             }
-            disabled={!selectedTime}
-            className={`px-4 py-2 rounded-md text-white transition ${
-              selectedTime
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
+            disabled={!selectedSlotId}
+            className={`px-4 py-2 rounded-md text-white transition
+              ${selectedSlotId ? "bg-blue-600 hover:bg-blue-700" : "bg-gray-400 cursor-not-allowed"}`}
           >
             Confirm Reschedule
           </button>

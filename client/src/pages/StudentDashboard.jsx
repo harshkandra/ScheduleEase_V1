@@ -1,4 +1,5 @@
 // src/pages/StudentDashboard.jsx
+import axios from "axios";
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import BookAppointmentModal from "../components/BookAppointmentModal";
@@ -228,14 +229,33 @@ export default function StudentDashboard() {
     setShowRescheduleModal(true);
   };
 
-  const handleConfirmReschedule = ({ id, datetime }) => {
+  const handleConfirmReschedule = async ({ appointmentId, slotId }) => {
+  console.log("DEBUG: Sending reschedule:", appointmentId, slotId);
+
+  try {
+    await axios.patch(
+  `http://localhost:5000/api/appointments/${appointmentId}/reschedule`,
+  { slotId },
+  { withCredentials: true }
+);
+
+
+
+
+    // Update UI
     setAppointments((prev) =>
       prev.map((a) =>
-        a.id === id ? { ...a, datetime: new Date(datetime).toISOString(), status: "Pending" } : a
+        a._id === appointmentId ? res.data : a
       )
     );
+
     setShowRescheduleModal(false);
-  };
+    alert("Appointment rescheduled!");
+  } catch (err) {
+    console.error(err);
+    alert(err.response?.data?.message || "Failed to reschedule");
+  }
+};
 
   const formatDateTime = (iso) => {
     try {
@@ -430,8 +450,14 @@ export default function StudentDashboard() {
 
       {/* Reschedule Modal */}
       {showRescheduleModal && rescheduleTarget && (
-        <RescheduleAppointmentModal appointment={rescheduleTarget} onClose={() => setShowRescheduleModal(false)} onConfirm={handleConfirmReschedule} />
-      )}
+  <RescheduleAppointmentModal
+    appointment={rescheduleTarget}
+    availableSlots={slotsMap}   // <-- FIX: pass slotsMap here
+    onClose={() => setShowRescheduleModal(false)}
+    onConfirm={handleConfirmReschedule}
+  />
+)}
+
     </div>
   );
 }

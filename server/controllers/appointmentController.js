@@ -1,19 +1,12 @@
 import Appointment from "../models/Appointment.js";
 import Slot from "../models/Slot.js";
-//import { sendEmail } from "./notificationController.js";
 
-// GET /api/appointments
-// Admin gets all, internal/external get their own
-// GET /api/appointments
-// Admin gets all, internal/external get their own
+// ---------------------- GET ALL / MINE ----------------------
 export const getAppointments = async (req, res) => {
   try {
-    const { role, _id } = req.user; // role is a string like "internal user"
+    const { role, _id } = req.user;
 
-    // default: admin gets all
     let filter = { is_deleted: false };
-
-    // internal/external users only get their own
     if (role === "internal user" || role === "external user") {
       filter.user = _id;
     }
@@ -31,32 +24,24 @@ export const getAppointments = async (req, res) => {
 };
 
 
-
-// POST /api/appointments
+// ---------------------- CREATE APPOINTMENT ----------------------
 export const createAppointment = async (req, res) => {
   try {
     const { slotId, title, description } = req.body;
+    if (!req.user) return res.status(401).json({ message: "Authentication required" });
 
-    if (!req.user) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
+    const role_name = req.user.role;
 
-    const role_name = req.user.role; // FIXED
-
-    if (!slotId || !title || !description) {
+    if (!slotId || !title || !description)
       return res.status(400).json({ message: "Slot, title and description required" });
-    }
 
-    if (role_name === "admin") {
+    if (role_name === "admin")
       return res.status(403).json({ message: "Admin cannot book appointments" });
-    }
 
     const slot = await Slot.findById(slotId);
     if (!slot) return res.status(404).json({ message: "Slot not found" });
 
-    if (slot.isBooked) {
-      return res.status(400).json({ message: "Slot unavailable" });
-    }
+    if (slot.isBooked) return res.status(400).json({ message: "Slot unavailable" });
 
     const status = role_name === "internal user" ? "approved" : "pending";
 
@@ -72,13 +57,12 @@ export const createAppointment = async (req, res) => {
     slot.isBooked = true;
     await slot.save();
 
-    // ✅ Correct population
-    const populated = await Appointment.findById(appt._id).populate([
-      { path: "slot" },
-      { path: "user" },
-    ]);
+    const populated = await Appointment.findById(appt._id)
+      .populate("slot")
+      .populate("user");
 
     return res.status(201).json(populated);
+
   } catch (err) {
     console.error("createAppointment error:", err);
     return res.status(500).json({ message: err.message });
@@ -86,8 +70,7 @@ export const createAppointment = async (req, res) => {
 };
 
 
-
-// GET /api/appointments/:id
+// ---------------------- GET BY ID ----------------------
 export const getAppointmentById = async (req, res) => {
   try {
     const appt = await Appointment.findById(req.params.id)
@@ -98,7 +81,7 @@ export const getAppointmentById = async (req, res) => {
       return res.status(404).json({ message: "Not found" });
 
     if (
-      req.user.role_name !== "admin" &&
+      req.user.role !== "admin" &&
       String(appt.user._id) !== String(req.user._id)
     ) {
       return res.status(403).json({ message: "Forbidden" });
@@ -110,7 +93,8 @@ export const getAppointmentById = async (req, res) => {
   }
 };
 
-// PUT /api/appointments/:id  (reschedule/update)
+
+// ---------------------- UPDATE (TITLE/DESCRIPTION ONLY) ----------------------
 export const updateAppointment = async (req, res) => {
   try {
     const appt = await Appointment.findById(req.params.id);
@@ -118,59 +102,38 @@ export const updateAppointment = async (req, res) => {
       return res.status(404).json({ message: "Not found" });
 
     if (
-      req.user.role_name !== "admin" &&
+      req.user.role !== "admin" &&
       String(appt.user) !== String(req.user._id)
     ) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    const { slotId, title, description } = req.body;
-
-    if (slotId && String(appt.slot) !== String(slotId)) {
-      const oldSlot = await Slot.findById(appt.slot);
-      if (oldSlot) {
-        oldSlot.is_booked = false;
-        await oldSlot.save();
-      }
-
-      const newSlot = await Slot.findById(slotId);
-      if (!newSlot || newSlot.is_booked)
-        return res.status(400).json({ message: "New slot unavailable" });
-
-      appt.slot = newSlot._id;
-      newSlot.is_booked = true;
-      await newSlot.save();
-    }
-
+    const { title, description } = req.body;
     if (title) appt.title = title;
     if (description) appt.description = description;
 
-    if (req.user.role_name === "external user")
-      appt.status = "pending";
-
     await appt.save();
 
-    sendEmail({
-      to: req.user.email,
-      subject: `Appointment Updated`,
-      text: `Your appointment has been modified.`
-    }).catch(() => {});
+    const populated = await Appointment.findById(appt._id)
+      .populate("slot")
+      .populate("user");
 
-    res.json(await appt.populate("slot").populate("user"));
+    res.json(populated);
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// SOFT DELETE
+
+// ---------------------- SOFT DELETE ----------------------
 export const deleteAppointment = async (req, res) => {
   try {
     const appt = await Appointment.findById(req.params.id);
-    if (!appt)
-      return res.status(404).json({ message: "Not found" });
+    if (!appt) return res.status(404).json({ message: "Not found" });
 
     if (
-      req.user.role_name !== "admin" &&
+      req.user.role !== "admin" &&
       String(appt.user) !== String(req.user._id)
     ) {
       return res.status(403).json({ message: "Forbidden" });
@@ -178,7 +141,7 @@ export const deleteAppointment = async (req, res) => {
 
     const slot = await Slot.findById(appt.slot);
     if (slot) {
-      slot.is_booked = false;
+      slot.isBooked = false;
       await slot.save();
     }
 
@@ -187,15 +150,17 @@ export const deleteAppointment = async (req, res) => {
     await appt.save();
 
     res.json({ message: "Appointment cancelled" });
+
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ADMIN — Approve / Reject
+
+// ---------------------- ADMIN STATUS UPDATE ----------------------
 export const updateAppointmentStatus = async (req, res) => {
   try {
-    if (req.user.role_name !== "admin")
+    if (req.user.role !== "admin")
       return res.status(403).json({ message: "Admin only" });
 
     const { status } = req.body;
@@ -203,9 +168,10 @@ export const updateAppointmentStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid status" });
 
     const appt = await Appointment.findById(req.params.id)
-      .populate("user slot");
-    if (!appt)
-      return res.status(404).json({ message: "Not found" });
+      .populate("user")
+      .populate("slot");
+
+    if (!appt) return res.status(404).json({ message: "Not found" });
 
     appt.status = status;
     await appt.save();
@@ -213,19 +179,68 @@ export const updateAppointmentStatus = async (req, res) => {
     if (status === "rejected") {
       const slot = await Slot.findById(appt.slot._id);
       if (slot) {
-        slot.is_booked = false;
+        slot.isBooked = false;
         await slot.save();
       }
     }
 
-    sendEmail({
-      to: appt.user.email,
-      subject: `Appointment ${status}`,
-      text: `Your appointment has been ${status} by the Admin.`
-    }).catch(() => {});
-
     res.json(appt);
+
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+// ---------------------- RESCHEDULE APPOINTMENT (THE REAL ONE) ----------------------
+export const rescheduleAppointment = async (req, res) => {
+  
+  try {
+    const appointmentId = req.params.id;
+    const { slotId } = req.body;
+
+    if (!slotId)
+      return res.status(400).json({ message: "New slotId required" });
+
+    const appt = await Appointment.findById(appointmentId);
+    if (!appt || appt.is_deleted)
+      return res.status(404).json({ message: "Appointment not found" });
+    console.log("DEBUG — Logged-in user ID:", req.user?._id);
+    console.log("DEBUG — Appointment user ID:", appt?.user?._id);
+    console.log("DEBUG — Logged-in user role:", req.user?.role);
+
+    if (
+      req.user.role !== "admin" &&
+      String(appt.user) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const newSlot = await Slot.findById(slotId);
+    if (!newSlot) return res.status(404).json({ message: "New slot not found" });
+    if (newSlot.isBooked) return res.status(400).json({ message: "Slot already booked" });
+
+    const oldSlot = await Slot.findById(appt.slot);
+    if (oldSlot) {
+      oldSlot.isBooked = false;
+      await oldSlot.save();
+    }
+
+    newSlot.isBooked = true;
+    await newSlot.save();
+
+    appt.slot = newSlot._id;
+    appt.status = req.user.role === "internal user" ? "approved" : "pending";
+    await appt.save();
+
+    const updated = await Appointment.findById(appt._id)
+      .populate("slot")
+      .populate("user");
+
+    res.json(updated);
+
+  } catch (err) {
+    console.error("Reschedule error:", err);
     res.status(500).json({ message: err.message });
   }
 };

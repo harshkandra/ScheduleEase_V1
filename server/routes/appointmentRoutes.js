@@ -3,6 +3,7 @@ import {
   getAppointments,
   createAppointment,
   getAppointmentById,
+  rescheduleAppointment,
   updateAppointment,
   deleteAppointment,
   updateAppointmentStatus
@@ -14,6 +15,7 @@ const router = express.Router();
 import { ensureAuthenticated } from "../middleware/authMiddleware.js";
 router.get("/", ensureAuthenticated, getAppointments);
 router.post("/", ensureAuthenticated, createAppointment);
+router.patch("/:id/reschedule", ensureAuthenticated, rescheduleAppointment);
 
 
 
