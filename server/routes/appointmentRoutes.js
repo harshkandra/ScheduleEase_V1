@@ -6,32 +6,64 @@ import {
   rescheduleAppointment,
   updateAppointment,
   deleteAppointment,
-  updateAppointmentStatus
+  updateAppointmentStatus,
+  getApprovedAppointments,
+  getPendingAppointments
 } from "../controllers/appointmentController.js";
 
+import { ensureAuthenticated } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-import { ensureAuthenticated } from "../middleware/authMiddleware.js";
+/* =====================
+   STATIC ROUTES FIRST
+===================== */
+
+// All approved appointments
+router.get("/approved", ensureAuthenticated, (req, res, next) => {
+  console.log("🔥 HIT /approved ROUTE");
+  next();
+}, getApprovedAppointments);
+
+router.get(
+  "/pending", ensureAuthenticated,(req, res, next) => {
+    console.log("🟡 HIT /pending ROUTE");
+    next();
+}, getPendingAppointments);
+
+
+/* =====================
+   LIST + CREATE
+===================== */
+
 router.get("/", ensureAuthenticated, getAppointments);
 router.post("/", ensureAuthenticated, createAppointment);
 router.patch("/:id/reschedule", ensureAuthenticated, rescheduleAppointment);
 
 
+/* =====================
+   SPECIFIC APPOINTMENT
+===================== */
 
+// get specific appointment
+router.get("/:id", ensureAuthenticated, getAppointmentById);
 
+// update appointment
+router.put("/:id", ensureAuthenticated, updateAppointment);
 
+// delete appointment
+router.delete("/:id", ensureAuthenticated, deleteAppointment);
 
-// router.route("/")
-//   .get(getAppointments)
-//   .post(createAppointment);
+/* =====================
+   ADMIN STATUS UPDATE
+===================== */
 
-router.route("/:id")
-  .get(getAppointmentById)
-  .put(updateAppointment)
-  .delete(deleteAppointment);
+router.put("/:id/status", ensureAuthenticated, updateAppointmentStatus);
+router.patch("/:id/approve", ensureAuthenticated, (req, res, next) => {
+  console.log("🔥 HIT /:id/approve");
+  next();
+}, updateAppointmentStatus);
+router.patch("/:id/reject", ensureAuthenticated, updateAppointmentStatus);
 
-router.put("/:id/status", updateAppointmentStatus);
 
 export default router;
-

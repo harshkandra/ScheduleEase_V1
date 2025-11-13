@@ -93,7 +93,59 @@ export const getAppointmentById = async (req, res) => {
 };
 
 
-// ---------------------- UPDATE (TITLE/DESCRIPTION ONLY) ----------------------
+export const getApprovedAppointments = async (req, res) => {
+  try {
+    const { role, _id } = req.user;
+
+    let filter = {
+      status: "approved",
+      is_deleted: false
+    };
+
+    // Admin → see all approved appointments
+    if (role !== "admin") {
+      filter.user = _id;
+    }
+
+    const appts = await Appointment.find(filter)
+      .populate("user")
+      .populate("slot")
+      .sort({ createdAt: -1 });
+
+    res.json(appts);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const getPendingAppointments = async (req, res) => {
+  try {
+    const { role, _id } = req.user;
+
+    let filter = {
+      status: "pending",
+      is_deleted: false
+    };
+
+    // Admin → see all approved appointments
+    if (role !== "admin") {
+      filter.user = _id;
+    }
+
+    const appts = await Appointment.find(filter)
+      .populate("user")
+      .populate("slot")
+      .sort({ createdAt: -1 });
+
+    res.json(appts);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
+// PUT /api/appointments/:id  (reschedule/update)
 export const updateAppointment = async (req, res) => {
   try {
     const appt = await Appointment.findById(req.params.id);
@@ -158,37 +210,67 @@ export const deleteAppointment = async (req, res) => {
   }
 };
 
+// ADMIN — Approve / Reject
+// export const updateAppointmentStatus = async (req, res) => {
+//   try {
+//     if (req.user.role_name !== "admin")
+//       return res.status(403).json({ message: "Admin only" });
 
-// ---------------------- ADMIN STATUS UPDATE ----------------------
+//     const { status } = req.body;
+//     if (!["approved", "rejected"].includes(status))
+//       return res.status(400).json({ message: "Invalid status" });
+
+//     const appt = await Appointment.findById(req.params.id)
+//       .populate("user slot");
+//     if (!appt)
+//       return res.status(404).json({ message: "Not found" });
+
+//     appt.status = status;
+//     await appt.save();
+
+//     if (status === "rejected") {
+//       const slot = await Slot.findById(appt.slot._id);
+//       if (slot) {
+//         slot.is_booked = false;
+//         await slot.save();
+//       }
+//     }
+
+//     sendEmail({
+//       to: appt.user.email,
+//       subject: `Appointment ${status}`,
+//       text: `Your appointment has been ${status} by the Admin.`
+//     }).catch(() => {});
+
+//     res.json(appt);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
+
 export const updateAppointmentStatus = async (req, res) => {
+  console.log("🟢 updateAppointmentStatus HIT:", req.path);
+  console.log("🟢 ID:", req.params.id);
   try {
-    if (req.user.role !== "admin")
-  return res.status(403).json({ message: "Admin only" });
+    const { id } = req.params;
+    let { status } = req.body;
+
+    // If hitting /approve or /reject, override status
+    if (req.path.endsWith("approve")) status = "approved";
+    if (req.path.endsWith("reject")) status = "rejected";
+    console.log("🟢 Final status:", status);
 
 
-    const { status } = req.body;
-    if (!["approved", "rejected"].includes(status))
-      return res.status(400).json({ message: "Invalid status" });
+    const updated = await Appointment.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
 
-    const appt = await Appointment.findById(req.params.id)
-      .populate("user")
-      .populate("slot");
+    if (!updated) return res.status(404).json({ message: "Not found" });
 
-    if (!appt) return res.status(404).json({ message: "Not found" });
-
-    appt.status = status;
-    await appt.save();
-
-    if (status === "rejected") {
-      const slot = await Slot.findById(appt.slot._id);
-      if (slot) {
-        slot.isBooked = false;
-        await slot.save();
-      }
-    }
-
-    res.json(appt);
-
+    res.json({ success: true, appointment: updated });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
