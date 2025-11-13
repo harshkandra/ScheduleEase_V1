@@ -228,7 +228,7 @@ export default function ExternalDashboard() {
         </div>
 
         {/* Two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[30%_70%] gap-6 mt-6">
           {/* Left - Appointments */}
           <div className="bg-white rounded-lg border p-6">
             <h3 className="text-lg font-semibold mb-4">Appointment Requests</h3>
