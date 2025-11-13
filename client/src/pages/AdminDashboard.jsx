@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle,
@@ -17,29 +18,44 @@ import {
 
 import CancelAppointmentModal from "../components/CancelAppointmentModal";
 import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal";
+import AddTimeSlotModal from "../components/AddTimeSlotModal";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("pending");
-
   const [showCancelModal, setShowCancelModal] = useState(null);
   const [showRescheduleModal, setShowRescheduleModal] = useState(null);
+  const [showAddSlotModal, setShowAddSlotModal] = useState(false);
+  const [timeSlots, setTimeSlots] = useState([]);
 
-  // ✅ Calendar time slot state
-  const [timeSlots, setTimeSlots] = useState([
-    { time: "9:00 AM", available: true },
-    { time: "10:00 AM", available: true },
-    { time: "11:00 AM", available: false },
-    { time: "2:00 PM", available: true },
-    { time: "3:00 PM", available: false },
-    { time: "4:00 PM", available: true },
-  ]);
-
-  const toggleAvailability = (index) => {
-    const updated = [...timeSlots];
-    updated[index].available = !updated[index].available;
-    setTimeSlots(updated);
+useEffect(() => {
+  const fetchSlots = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const res = await axios.get(`http://localhost:5000/api/slots?date=${today}`);
+    setTimeSlots(res.data);
   };
+
+  fetchSlots();
+}, []);
+
+
+const handleAddSlot = (created) => {
+  // created may be the slot itself, or { slot: ... }, or similar.
+  const slot = created?.slot ?? created;
+
+  if (!slot) {
+    // fallback: refresh list from server
+    fetchSlots(); // see note below — make sure fetchSlots is declared
+    setShowAddSlotModal(false);
+    return;
+  }
+
+  // append slot exactly as returned by backend:
+  setTimeSlots(prev => [...prev, slot]);
+  setShowAddSlotModal(false);
+};
+
+
 
   const stats = [
     { title: "Pending Requests", value: 8, change: "+3 today", icon: <Clock className="text-orange-500" /> },
@@ -97,18 +113,16 @@ export default function AdminDashboard() {
     },
   ];
 
-<<<<<<< HEAD
-=======
-    const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
       const res = await fetch("http://localhost:5000/api/auth/logout", {
         method: "POST",
-        credentials: "include", // ✅ important so cookies are sent to backend
+        credentials: "include",
       });
 
       if (res.ok) {
         console.log("Logout successful");
-        navigate("/login"); // ✅ redirect to login AFTER backend logout
+        navigate("/login");
       } else {
         const data = await res.json();
         console.error("Logout failed:", data.message);
@@ -118,10 +132,9 @@ export default function AdminDashboard() {
     }
   };
 
->>>>>>> integration/adithya
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* === HEADER === */}
       <header className="flex items-center justify-between bg-white shadow-sm px-8 py-4">
         <div>
           <h1 className="text-2xl font-bold text-sky-600">
@@ -135,11 +148,7 @@ export default function AdminDashboard() {
             Administrator
           </span>
           <button
-<<<<<<< HEAD
-            onClick={() => navigate("/login")}
-=======
             onClick={handleLogout}
->>>>>>> integration/adithya
             className="flex items-center gap-2 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-100 transition"
           >
             <LogOut size={16} />
@@ -148,7 +157,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* Stats */}
+      {/* === STATS === */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-8 px-8">
         {stats.map((item, idx) => (
           <div
@@ -165,7 +174,7 @@ export default function AdminDashboard() {
         ))}
       </section>
 
-      {/* Tabs */}
+      {/* === TABS === */}
       <div className="flex justify-start border-b border-gray-200 mt-8 px-8">
         {["pending", "today", "calendar", "analytics"].map((tab) => (
           <button
@@ -185,7 +194,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* === Pending Requests === */}
+      {/* === PENDING REQUESTS === */}
       {activeTab === "pending" && (
         <>
           <div className="flex justify-between items-center mt-6 px-8">
@@ -239,11 +248,10 @@ export default function AdminDashboard() {
         </>
       )}
 
-      {/* === Today's Schedule === */}
+      {/* === TODAY'S SCHEDULE === */}
       {activeTab === "today" && (
         <div className="px-8 mt-6 pb-10">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Today's Appointments</h2>
-
           {todayAppointments.map((appt) => (
             <div
               key={appt.id}
@@ -269,7 +277,6 @@ export default function AdminDashboard() {
                 >
                   <Calendar size={16} /> Reschedule
                 </button>
-
                 <button
                   onClick={() => setShowCancelModal(appt)}
                   className="flex items-center gap-1 border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
@@ -282,53 +289,58 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* === Director's Calendar === */}
+      {/* === DIRECTOR’S CALENDAR === */}
       {activeTab === "calendar" && (
-        <div className="px-8 mt-6 pb-10">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">
-            Director's Schedule Management
-          </h2>
+  <div className="px-8 mt-6 pb-10">
+    <h2 className="text-lg font-semibold text-gray-700 mb-4">
+      Director's Schedule Management
+    </h2>
 
-          <div className="bg-white border rounded-xl p-6 shadow-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-gray-700 font-medium text-base">
-                Available Time Slots
-              </h3>
-              <button className="flex items-center gap-2 bg-sky-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-sky-700 transition">
-                <Plus size={16} /> Block Time Slot
-              </button>
-            </div>
+    <div className="bg-white border rounded-xl p-6 shadow-sm">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-gray-700 font-medium text-base">
+          Available Time Slots
+        </h3>
+        <button
+          onClick={() => setShowAddSlotModal(true)}
+          className="flex items-center gap-2 bg-sky-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-sky-700 transition"
+        >
+          <Plus size={16} /> Block Time Slot
+        </button>
+      </div>
 
-            <p className="text-gray-500 text-sm mb-4">
-              Manage the Director's availability for appointments
-            </p>
+      <p className="text-gray-500 text-sm mb-4">
+        Manage the Director's availability for appointments
+      </p>
 
-            {/* Time Slots */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {timeSlots.map((slot, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between border rounded-lg px-4 py-3 bg-gray-50"
-                >
-                  <span className="text-gray-700 font-medium text-sm">{slot.time}</span>
-                  <button
-                    onClick={() => toggleAvailability(index)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      slot.available
-                        ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
-                        : "bg-red-100 text-red-600 hover:bg-red-200"
-                    }`}
-                  >
-                    {slot.available ? "Available" : "Block"}
-                  </button>
-                </div>
-              ))}
-            </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {timeSlots.map((slot, index) => (
+          <div
+            key={slot._id || index}
+            className="flex items-center justify-between border rounded-lg px-4 py-3 bg-gray-50"
+          >
+            <span className="text-gray-700 font-medium text-sm">
+              {`${slot.date} | ${slot.timeStart} - ${slot.timeEnd}`}
+            </span>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                slot.isBooked
+                  ? "bg-red-100 text-red-600"
+                  : "bg-blue-100 text-blue-600"
+              }`}
+            >
+              {slot.isBooked ? "Booked" : "Available"}
+            </span>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
-      {/* === Analytics === */}
+
+
+      {/* === ANALYTICS === */}
       {activeTab === "analytics" && (
         <div className="px-8 mt-6 pb-10">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Analytics Overview</h2>
@@ -368,7 +380,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Modals */}
+      {/* === MODALS === */}
       {showCancelModal && (
         <CancelAppointmentModal
           appointment={showCancelModal}
@@ -390,6 +402,14 @@ export default function AdminDashboard() {
           }}
         />
       )}
+
+      {showAddSlotModal && (
+        <AddTimeSlotModal
+          onClose={() => setShowAddSlotModal(false)}
+          onConfirm={handleAddSlot}
+        />
+      )}
     </div>
   );
 }
+

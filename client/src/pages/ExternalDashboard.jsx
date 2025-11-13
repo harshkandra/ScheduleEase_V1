@@ -4,8 +4,6 @@ import BookAppointmentModal from "../components/BookAppointmentModal";
 import CancelAppointmentModal from "../components/CancelAppointmentModal";
 import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal"; // ✅ Added
 import { PlusCircle, CalendarClock, XCircle } from "lucide-react";
-<<<<<<< HEAD
-=======
 import { useEffect } from "react";
 
 
@@ -21,13 +19,10 @@ import { useEffect } from "react";
 //   );
 
 
->>>>>>> integration/adithya
 
 export default function ExternalDashboard() {
   const navigate = useNavigate();
 
-<<<<<<< HEAD
-=======
   useEffect(() => {
     fetch("http://localhost:5000/api/auth/me", {
       credentials: "include",
@@ -41,7 +36,6 @@ export default function ExternalDashboard() {
       .catch(() => navigate("/login"));
   }, [navigate]);
 
->>>>>>> integration/adithya
   // Mock appointments
   const [appointments, setAppointments] = useState([
     {
@@ -138,8 +132,6 @@ export default function ExternalDashboard() {
   minDate.setDate(minDate.getDate() + 2);
   const minDateISO = minDate.toISOString().slice(0, 10);
 
-<<<<<<< HEAD
-=======
   const handleLogout = async () => {
     try {
       const res = await fetch("http://localhost:5000/api/auth/logout", {
@@ -176,7 +168,6 @@ export default function ExternalDashboard() {
 //   });
 // });
 
->>>>>>> integration/adithya
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top Bar */}
@@ -191,11 +182,7 @@ export default function ExternalDashboard() {
               External User
             </span>
             <button
-<<<<<<< HEAD
-              onClick={() => navigate("/login")}
-=======
               onClick={handleLogout}
->>>>>>> integration/adithya
               className="bg-white border px-3 py-1 rounded-md text-sm hover:bg-gray-50"
             >
               Logout

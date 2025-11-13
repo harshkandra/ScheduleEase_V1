@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from "react";
-<<<<<<< HEAD
-=======
+
 import { createAppointment } from "../api/appointmentAPI";
->>>>>>> integration/adithya
 
 /**
  * BookAppointmentModal.jsx
@@ -50,35 +48,7 @@ export default function BookAppointmentModal({
     setForm((s) => ({ ...s, [name]: value }));
   };
 
-<<<<<<< HEAD
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // minimal required validation matching screenshot (fields with *)
-    if (!form.name || !form.email || !form.meetingType || !form.duration || !form.purpose || !form.date || !form.time) {
-      alert("Please fill all required fields marked with *");
-      return;
-    }
-
-    const appt = {
-      id: "ap" + Math.random().toString(36).slice(2, 9),
-      title: form.purpose,
-      meetingType: form.meetingType,
-      duration: form.duration,
-      date: form.date,
-      time: form.time,
-      agenda: form.agenda,
-      docs: form.docs,
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      role,
-      status: role.toLowerCase().includes("student") ? "Approved" : "Pending",
-    };
-
-    onSubmit(appt);
-    onClose();
-  };
-=======
+  
   // const handleSubmit = (e) => {
   //   e.preventDefault();
   //   // minimal required validation matching screenshot (fields with *)
@@ -108,8 +78,7 @@ export default function BookAppointmentModal({
   // };
 
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {e.preventDefault();
 
   if (!form.name || !form.email || !form.meetingType || !form.duration || !form.purpose || !form.date || !form.time) {
     alert("Please fill all required fields marked with *");
@@ -138,7 +107,7 @@ export default function BookAppointmentModal({
     alert(err.response?.data?.message || "Failed to book appointment. Please try again.");
   }
 };
->>>>>>> integration/adithya
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4">
