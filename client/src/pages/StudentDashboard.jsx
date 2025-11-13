@@ -1,47 +1,35 @@
 // src/pages/StudentDashboard.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import BookAppointmentModal from "../components/BookAppointmentModal";
 import CancelAppointmentModal from "../components/CancelAppointmentModal";
-import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal"; // ✅ added import
+import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal";
 import { PlusCircle, CalendarClock, XCircle } from "lucide-react";
+
+/**
+ * StudentDashboard
+ * - shows only the logged-in user's approved appointments
+ * - loads slots from /api/slots and uses them for the calendar
+ * - opens BookAppointmentModal with a full slot object when slot clicked
+ *
+ * NOTE: Adjust API URLs if your backend endpoints differ.
+ */
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
 
-  // Mock Appointments
-  const [appointments, setAppointments] = useState([
-    {
-      id: "s-meet",
-      title: "Meeting with Director",
-      desc: "Project Discussion",
-      datetime: (() => {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        d.setHours(14, 0, 0, 0);
-        return d.toISOString();
-      })(),
-      status: "Approved",
-    },
-    {
-      id: "s-prop",
-      title: "Research Proposal",
-      desc: "PhD Proposal Review",
-      datetime: new Date(2025, 11, 28, 10, 30).toISOString(),
-      status: "Pending",
-    },
-  ]);
+  // Appointments shown on the left (only approved ones)
+  const [appointments, setAppointments] = useState([]);
 
-  // State for booking
-  const [slotsMap, setSlotsMap] = useState(() => buildDefaultSlots(new Date()));
+  // Map of slots grouped by date: { "2025-11-13": [{ id, timeStart, timeEnd, isBooked, date, raw }] }
+  const [slotsMap, setSlotsMap] = useState({});
+
   const [viewDate, setViewDate] = useState(new Date());
-  const [modalPrefill, setModalPrefill] = useState(false);
+  const [modalPrefill, setModalPrefill] = useState(false); // { slot } or false
 
-  // Cancel Modal state
+  // Modal states
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-
-  // ✅ Reschedule Modal state
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
 
@@ -50,18 +38,8 @@ export default function StudentDashboard() {
   const year = viewDate.getFullYear();
   const monthNames = useMemo(
     () => [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December",
     ],
     []
   );
@@ -69,8 +47,136 @@ export default function StudentDashboard() {
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Handlers
-  const openModal = (pref = { date: "", time: "" }) => setModalPrefill(pref);
+  // --- Load slots from backend and build slotsMap ---
+  useEffect(() => {
+    let mounted = true;
+    const loadSlots = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/slots", {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!res.ok) {
+          console.error("Failed to fetch slots:", res.status);
+          return;
+        }
+        const data = await res.json();
+        // group by date
+        const grouped = {};
+        data.forEach((s) => {
+          const d = s.date;
+          if (!grouped[d]) grouped[d] = [];
+          grouped[d].push({
+            id: s._id || s.id,
+            timeStart: s.timeStart,
+            timeEnd: s.timeEnd,
+            isBooked: !!(s.isBooked || s.is_booked),
+            date: s.date,
+            raw: s,
+          });
+        });
+        if (mounted) setSlotsMap(grouped);
+      } catch (err) {
+        console.error("Error loading slots:", err);
+      }
+    };
+    loadSlots();
+    return () => { mounted = false; };
+  }, []);
+
+  // --- Load the current user's appointments (mine=true) and keep only "approved" ---
+  useEffect(() => {
+    let mounted = true;
+    const loadAppointments = async () => {
+      try {
+        // adjust URL if your backend uses a different path, e.g. /api/appointments/me
+        const res = await fetch("http://localhost:5000/api/appointments?mine=true", {
+          method: "GET",
+          credentials: "include",
+          headers: { "Accept": "application/json" },
+        });
+        if (!res.ok) {
+          console.warn("Failed to fetch appointments:", res.status);
+          return;
+        }
+        const data = await res.json();
+        if (!Array.isArray(data)) {
+          console.warn("Appointments API returned non-array:", data);
+          return;
+        }
+
+        // Map each appointment to UI shape, attempt slot resolution
+        const mapped = data.map((a) => {
+          // appointment.status is string e.g. "approved"
+          const statusStr = (a.status || "").toString();
+          // Determine slot info:
+          let slotInfo = null;
+          if (a.slot && typeof a.slot === "object" && (a.slot.date || a.slot.timeStart || a.slot.timeEnd)) {
+            // populated slot object
+            slotInfo = {
+              id: a.slot._id || a.slot.id,
+              date: a.slot.date,
+              timeStart: a.slot.timeStart,
+              timeEnd: a.slot.timeEnd,
+              isBooked: !!(a.slot.isBooked || a.slot.is_booked),
+            };
+          } else if (a.slot) {
+            // slot is likely an id -> lookup from slotsMap (we might not have loaded slots yet)
+            const slotIdStr = (a.slot && (a.slot._id || a.slot))?.toString();
+            // search slotsMap for id
+            let found = null;
+            for (const d of Object.keys(slotsMap)) {
+              const arr = slotsMap[d];
+              const f = arr.find((it) => it.id?.toString() === slotIdStr);
+              if (f) { found = f; break; }
+            }
+            if (found) {
+              slotInfo = {
+                id: found.id,
+                date: found.date,
+                timeStart: found.timeStart,
+                timeEnd: found.timeEnd,
+                isBooked: found.isBooked,
+              };
+            } else {
+              // fallback: leave slot null, UI will show generic datetime if present on appointment otherwise unknown
+              slotInfo = null;
+            }
+          }
+
+          // Build UI appointment
+          const datetime = slotInfo && slotInfo.date && slotInfo.timeStart
+            ? `${slotInfo.date}T${slotInfo.timeStart}:00.000Z`
+            : a.datetime || a.dateTime || new Date().toISOString();
+
+          return {
+            id: a._id || a.id,
+            title: a.title || "Appointment",
+            desc: a.description || "",
+            datetime,
+            status: statusStr ? (statusStr.charAt(0).toUpperCase() + statusStr.slice(1)) : "Pending",
+            raw: a,
+            slot: slotInfo,
+          };
+        });
+
+        // filter approved only (case-insensitive)
+        const approved = mapped.filter((m) => String(m.status || "").toLowerCase() === "approved");
+
+        if (mounted) setAppointments(approved);
+      } catch (err) {
+        console.error("Error fetching appointments:", err);
+      }
+    };
+
+    loadAppointments();
+    return () => { mounted = false; };
+    // Note: not including slotsMap in deps; if slotsMap is loaded later it won't re-map appointments.
+    // That's okay because appointment slot lookup is best done server-side (preferably populate slot in backend).
+  }, []);
+
+  // --- Handlers ---
+  const openModal = (pref = { slot: null }) => setModalPrefill(pref);
   const closeModal = () => setModalPrefill(false);
 
   const handleCancelClick = (appointment) => {
@@ -86,57 +192,73 @@ export default function StudentDashboard() {
     );
   };
 
+  // Add appointment to UI (only if approved)
   const addAppointment = (appt) => {
-    setAppointments((prev) => [appt, ...prev]);
-    const dateISO = appt.datetime.slice(0, 10);
-    const time = appt.datetime.slice(11, 16);
-    setSlotsMap((prev) => {
-      const arr = prev[dateISO]?.filter((t) => t !== time) || [];
-      return { ...prev, [dateISO]: arr };
-    });
+    const created = {
+      id: appt._id || appt.id || "ap" + Math.random().toString(36).slice(2, 9),
+      title: appt.title || appt.purpose || "Appointment",
+      desc: appt.description || "",
+      datetime: appt.datetime || appt.dateTime || new Date().toISOString(),
+      status: (appt.status && typeof appt.status === "string")
+        ? (appt.status.charAt(0).toUpperCase() + appt.status.slice(1))
+        : "Pending",
+      raw: appt,
+      slot: appt.slot || null,
+    };
+
+    if (String(created.status || "").toLowerCase() === "approved") {
+      setAppointments((prev) => [created, ...prev]);
+    } else {
+      console.log("New appointment not approved yet; not added to approved list.");
+    }
+
+    // Remove the booked time from local slotsMap if date/time known
+    const dateISO = (created.datetime || "").slice(0, 10) || (created.slot && created.slot.date) || "";
+    const time = (created.datetime || "").slice(11, 16) || (created.slot && created.slot.timeStart) || "";
+    if (dateISO && time) {
+      setSlotsMap((prev) => {
+        const arr = prev[dateISO]?.filter((t) => t.timeStart !== time) || [];
+        return { ...prev, [dateISO]: arr };
+      });
+    }
   };
 
-  // ✅ Open reschedule modal
   const handleRescheduleClick = (appointment) => {
     setRescheduleTarget(appointment);
     setShowRescheduleModal(true);
   };
 
-  // ✅ Update appointment after reschedule confirmation
   const handleConfirmReschedule = ({ id, datetime }) => {
     setAppointments((prev) =>
       prev.map((a) =>
-        a.id === id
-          ? { ...a, datetime: new Date(datetime).toISOString(), status: "Pending" }
-          : a
+        a.id === id ? { ...a, datetime: new Date(datetime).toISOString(), status: "Pending" } : a
       )
     );
     setShowRescheduleModal(false);
   };
 
   const formatDateTime = (iso) => {
-    const d = new Date(iso);
-    return `${d.toLocaleDateString()} · ${d.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
+    try {
+      const d = new Date(iso);
+      return `${d.toLocaleDateString()} · ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+    } catch {
+      return iso;
+    }
   };
 
-  const prevMonth = () =>
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-  const nextMonth = () =>
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  const prevMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const nextMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
-    const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
       const res = await fetch("http://localhost:5000/api/auth/logout", {
         method: "POST",
-        credentials: "include", // ✅ important so cookies are sent to backend
+        credentials: "include",
       });
 
       if (res.ok) {
         console.log("Logout successful");
-        navigate("/login"); // ✅ redirect to login AFTER backend logout
+        navigate("/login");
       } else {
         const data = await res.json();
         console.error("Logout failed:", data.message);
@@ -168,21 +290,19 @@ export default function StudentDashboard() {
       <section className="mt-6 flex justify-center">
         <div className="grid grid-cols-3 gap-4 w-full max-w-4xl">
           <button
-            onClick={() => openModal({ date: "", time: "" })}
+            onClick={() => openModal({ slot: null })}
             className="flex items-center justify-center gap-2 py-3 rounded-lg font-medium text-white bg-gradient-to-r from-blue-500 to-green-400 shadow hover:opacity-90"
           >
             <PlusCircle size={18} /> Book New Appointment
           </button>
+
           <button
-            onClick={() =>
-              appointments.length
-                ? handleRescheduleClick(appointments[0])
-                : alert("No appointments to reschedule")
-            }
+            onClick={() => (appointments.length ? handleRescheduleClick(appointments[0]) : alert("No appointments to reschedule"))}
             className="flex items-center justify-center gap-2 py-3 rounded-lg font-medium bg-white border border-gray-300 hover:border-blue-400 text-gray-700 transition"
           >
             <CalendarClock size={18} /> Reschedule Appointment
           </button>
+
           <button
             onClick={() => handleCancelClick(appointments[0])}
             className="flex items-center justify-center gap-2 py-3 rounded-lg font-medium bg-white border border-gray-300 hover:border-rose-400 text-gray-700 transition"
@@ -196,48 +316,25 @@ export default function StudentDashboard() {
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6 px-6 py-6">
         {/* My Appointments */}
         <div className="bg-white border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">My Appointments</h3>
+          <h3 className="text-lg font-semibold mb-4">My Approved Appointments</h3>
           {appointments.length === 0 ? (
-            <div className="text-gray-500 text-sm">No Appointments Found</div>
+            <div className="text-gray-500 text-sm">No approved appointments found</div>
           ) : (
             <div className="space-y-4">
               {appointments.map((a) => (
-                <div
-                  key={a.id}
-                  className="border rounded-lg p-4 flex justify-between items-start"
-                >
+                <div key={a.id} className="border rounded-lg p-4 flex justify-between items-start">
                   <div>
                     <p className="font-semibold text-sm">{a.title}</p>
-                    <p className="text-xs text-gray-500">
-                      {formatDateTime(a.datetime)}
-                    </p>
+                    <p className="text-xs text-gray-500">{formatDateTime(a.datetime)}</p>
                     <p className="text-xs text-gray-400 mt-1">{a.desc}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs ${
-                        a.status === "Approved"
-                          ? "bg-blue-100 text-blue-700"
-                          : a.status === "Pending"
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
+                    <span className={`px-3 py-1 rounded-full text-xs ${a.status === "Approved" ? "bg-blue-100 text-blue-700" : a.status === "Pending" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"}`}>
                       {a.status}
                     </span>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => handleRescheduleClick(a)} // ✅ wired to open modal
-                        className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
-                      >
-                        Reschedule
-                      </button>
-                      <button
-                        onClick={() => handleCancelClick(a)}
-                        className="text-xs px-2 py-1 border rounded hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
+                      <button onClick={() => handleRescheduleClick(a)} className="text-xs px-2 py-1 border rounded hover:bg-gray-50">Reschedule</button>
+                      <button onClick={() => handleCancelClick(a)} className="text-xs px-2 py-1 border rounded hover:bg-gray-50">Cancel</button>
                     </div>
                   </div>
                 </div>
@@ -251,24 +348,14 @@ export default function StudentDashboard() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold">Available Slots</h3>
             <div className="flex items-center gap-2">
-              <button onClick={prevMonth} className="px-2 py-1 border rounded">
-                ‹
-              </button>
-              <span className="text-sm text-gray-600">
-                {monthNames[month]} {year}
-              </span>
-              <button onClick={nextMonth} className="px-2 py-1 border rounded">
-                ›
-              </button>
+              <button onClick={prevMonth} className="px-2 py-1 border rounded">‹</button>
+              <span className="text-sm text-gray-600">{monthNames[month]} {year}</span>
+              <button onClick={nextMonth} className="px-2 py-1 border rounded">›</button>
             </div>
           </div>
 
           <div className="grid grid-cols-7 gap-1 text-xs text-gray-500 mb-2">
-            {daysOfWeek.map((d) => (
-              <div key={d} className="text-center">
-                {d}
-              </div>
-            ))}
+            {daysOfWeek.map((d) => (<div key={d} className="text-center">{d}</div>))}
           </div>
 
           <div className="grid grid-cols-7 gap-2">
@@ -277,41 +364,39 @@ export default function StudentDashboard() {
             ))}
 
             {Array.from({ length: daysInMonth }).map((_, idx) => {
-              const date = new Date(year, month, idx + 1);
-              const iso = date.toISOString().slice(0, 10);
-              const times = slotsMap[iso] || [];
+              const dateObj = new Date(year, month, idx + 1);
+              const iso = dateObj.toISOString().slice(0, 10);
+              const slotsForDay = slotsMap[iso] || [];
 
               return (
-                <div
-                  key={iso}
-                  className="h-40 rounded border p-2 flex flex-col bg-gray-50 hover:bg-gray-100 transition"
-                >
+                <div key={iso} className="h-40 rounded border p-2 flex flex-col bg-gray-50 hover:bg-gray-100 transition">
                   <div className="flex justify-between">
-                    <span className="text-sm font-semibold text-gray-700">
-                      {idx + 1}
-                    </span>
-                    <span className="text-xs text-gray-400">{times.length}</span>
+                    <span className="text-sm font-semibold text-gray-700">{idx + 1}</span>
+                    <span className="text-xs text-gray-400">{slotsForDay.length}</span>
                   </div>
 
                   <div className="mt-1 overflow-auto space-y-1">
-                    {times.length === 0 ? (
+                    {slotsForDay.length === 0 ? (
                       <div className="text-xs text-gray-400">No slots</div>
                     ) : (
-                      times.slice(0, 3).map((t) => (
+                      slotsForDay.slice(0, 3).map((s) => (
                         <button
-                          key={t}
-                          onClick={() => openModal({ date: iso, time: t })}
-                          className="w-full text-xs text-left px-2 py-1 border rounded hover:bg-blue-50"
-                        >
-                          {t}
-                        </button>
+  key={s.id}
+  onClick={() => !s.isBooked && openModal({ slot: s.raw })}
+  className={`w-full text-xs text-left px-2 py-1 rounded border 
+    ${s.isBooked 
+      ? "bg-red-100 text-red-700 border-red-300 cursor-not-allowed" 
+      : "bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
+    }`
+  }
+  disabled={s.isBooked}
+>
+  {s.timeStart} - {s.timeEnd}
+</button>
+
                       ))
                     )}
-                    {times.length > 3 && (
-                      <div className="text-xs text-gray-400">
-                        +{times.length - 3} more
-                      </div>
-                    )}
+                    {slotsForDay.length > 3 && <div className="text-xs text-gray-400">+{slotsForDay.length - 3} more</div>}
                   </div>
                 </div>
               );
@@ -322,36 +407,17 @@ export default function StudentDashboard() {
 
       {/* Stats Section */}
       <section className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4 px-6 pb-10">
-        <StatCard
-          title="Total Appointments"
-          value={appointments.length}
-          subtitle="+2 this month"
-          color="green"
-        />
-        <StatCard
-          title="Pending Requests"
-          value={appointments.filter((a) => a.status === "Pending").length}
-          subtitle="Awaiting approval"
-          color="yellow"
-        />
-        <StatCard
-          title="Approval Rate"
-          value={`${Math.round(
-            (appointments.filter((a) => a.status === "Approved").length /
-              Math.max(1, appointments.length)) *
-              100
-          )}%`}
-          subtitle={`${appointments.filter((a) => a.status === "Approved").length}/${appointments.length} approved`}
-          color="blue"
-        />
+        <StatCard title="Total Appointments" value={appointments.length} subtitle="+0 this month" color="green" />
+        <StatCard title="Pending Requests" value={0} subtitle="(only approved shown)" color="yellow" />
+        <StatCard title="Approval Rate" value={`${appointments.length ? "100%" : "0%"}`} subtitle={`${appointments.length}/${appointments.length} approved`} color="blue" />
       </section>
 
       {/* Book Appointment Modal */}
       {modalPrefill && (
         <BookAppointmentModal
-          role="Student"
-          defaultDate={modalPrefill.date}
-          defaultTime={modalPrefill.time}
+          slot={modalPrefill.slot || null}
+          defaultDate={modalPrefill.slot?.date || ""}
+          defaultTime={modalPrefill.slot?.timeStart || ""}
           onClose={closeModal}
           onSubmit={addAppointment}
         />
@@ -359,20 +425,12 @@ export default function StudentDashboard() {
 
       {/* Cancel Appointment Modal */}
       {showCancelModal && selectedAppointment && (
-        <CancelAppointmentModal
-          appointment={selectedAppointment}
-          onClose={() => setShowCancelModal(false)}
-          onConfirm={handleConfirmCancel}
-        />
+        <CancelAppointmentModal appointment={selectedAppointment} onClose={() => setShowCancelModal(false)} onConfirm={handleConfirmCancel} />
       )}
 
-      {/* ✅ Reschedule Appointment Modal */}
+      {/* Reschedule Modal */}
       {showRescheduleModal && rescheduleTarget && (
-        <RescheduleAppointmentModal
-          appointment={rescheduleTarget}
-          onClose={() => setShowRescheduleModal(false)}
-          onConfirm={handleConfirmReschedule}
-        />
+        <RescheduleAppointmentModal appointment={rescheduleTarget} onClose={() => setShowRescheduleModal(false)} onConfirm={handleConfirmReschedule} />
       )}
     </div>
   );
@@ -380,11 +438,7 @@ export default function StudentDashboard() {
 
 /* StatCard Component */
 function StatCard({ title, value, subtitle, color }) {
-  const colorClass = {
-    green: "text-green-500",
-    yellow: "text-yellow-500",
-    blue: "text-blue-500",
-  }[color];
+  const colorClass = { green: "text-green-500", yellow: "text-yellow-500", blue: "text-blue-500" }[color];
   return (
     <div className="bg-white border rounded-lg p-4">
       <div className="text-sm text-gray-500">{title}</div>
@@ -392,22 +446,4 @@ function StatCard({ title, value, subtitle, color }) {
       <div className={`text-xs ${colorClass} mt-1`}>{subtitle}</div>
     </div>
   );
-}
-
-/* Helper: Default available slots */
-function buildDefaultSlots(date) {
-  const map = {};
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const days = new Date(year, month + 1, 0).getDate();
-  for (let i = 1; i <= days; i++) {
-    const d = new Date(year, month, i);
-    const day = d.getDay();
-    const key = d.toISOString().slice(0, 10);
-    map[key] =
-      day === 0 || day === 6
-        ? ["09:00", "10:00"]
-        : ["09:00", "09:30", "10:00", "11:00", "14:00"];
-  }
-  return map;
 }

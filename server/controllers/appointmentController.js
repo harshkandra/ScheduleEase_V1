@@ -1,6 +1,6 @@
 import Appointment from "../models/Appointment.js";
 import Slot from "../models/Slot.js";
-import { sendEmail } from "./notificationController.js";
+//import { sendEmail } from "./notificationController.js";
 
 // GET /api/appointments
 // Admin gets all, internal/external get their own
@@ -36,25 +36,32 @@ export const getAppointments = async (req, res) => {
 export const createAppointment = async (req, res) => {
   try {
     const { slotId, title, description } = req.body;
-    const { _id, role_name, email } = req.user;
 
-    if (role_name === "admin") {
-      return res.status(403).json({ message: "Admin cannot book appointments" });
+    if (!req.user) {
+      return res.status(401).json({ message: "Authentication required" });
     }
+
+    const role_name = req.user.role; // FIXED
 
     if (!slotId || !title || !description) {
       return res.status(400).json({ message: "Slot, title and description required" });
     }
 
+    if (role_name === "admin") {
+      return res.status(403).json({ message: "Admin cannot book appointments" });
+    }
+
     const slot = await Slot.findById(slotId);
-    if (!slot || slot.is_booked) {
+    if (!slot) return res.status(404).json({ message: "Slot not found" });
+
+    if (slot.isBooked) {
       return res.status(400).json({ message: "Slot unavailable" });
     }
 
     const status = role_name === "internal user" ? "approved" : "pending";
 
     const appt = await Appointment.create({
-      user: _id,
+      user: req.user._id,
       slot: slot._id,
       title,
       description,
@@ -62,20 +69,23 @@ export const createAppointment = async (req, res) => {
       status,
     });
 
-    slot.is_booked = true;
+    slot.isBooked = true;
     await slot.save();
 
-    sendEmail({
-      to: email,
-      subject: `Appointment ${status}`,
-      text: `Your appointment has been ${status}.`
-    }).catch(() => {});
+    // ✅ Correct population
+    const populated = await Appointment.findById(appt._id).populate([
+      { path: "slot" },
+      { path: "user" },
+    ]);
 
-    res.status(201).json(await appt.populate("slot").populate("user"));
+    return res.status(201).json(populated);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("createAppointment error:", err);
+    return res.status(500).json({ message: err.message });
   }
 };
+
+
 
 // GET /api/appointments/:id
 export const getAppointmentById = async (req, res) => {
