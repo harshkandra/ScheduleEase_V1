@@ -6,7 +6,8 @@ import {
   updateAppointment,
   deleteAppointment,
   updateAppointmentStatus,
-  getApprovedAppointments
+  getApprovedAppointments,
+  getPendingAppointments
 } from "../controllers/appointmentController.js";
 
 import { ensureAuthenticated } from "../middleware/authMiddleware.js";
@@ -22,6 +23,13 @@ router.get("/approved", ensureAuthenticated, (req, res, next) => {
   console.log("🔥 HIT /approved ROUTE");
   next();
 }, getApprovedAppointments);
+
+router.get(
+  "/pending", ensureAuthenticated,(req, res, next) => {
+    console.log("🟡 HIT /pending ROUTE");
+    next();
+}, getPendingAppointments);
+
 
 /* =====================
    LIST + CREATE
@@ -48,5 +56,11 @@ router.delete("/:id", ensureAuthenticated, deleteAppointment);
 ===================== */
 
 router.put("/:id/status", ensureAuthenticated, updateAppointmentStatus);
+router.patch("/:id/approve", ensureAuthenticated, (req, res, next) => {
+  console.log("🔥 HIT /:id/approve");
+  next();
+}, updateAppointmentStatus);
+router.patch("/:id/reject", ensureAuthenticated, updateAppointmentStatus);
+
 
 export default router;
