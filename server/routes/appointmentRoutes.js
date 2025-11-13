@@ -5,31 +5,48 @@ import {
   getAppointmentById,
   updateAppointment,
   deleteAppointment,
-  updateAppointmentStatus
+  updateAppointmentStatus,
+  getApprovedAppointments
 } from "../controllers/appointmentController.js";
-import { mockAuth } from "../middleware/mockAuth.js";
+
+import { ensureAuthenticated } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-import { ensureAuthenticated } from "../middleware/authMiddleware.js";
+/* =====================
+   STATIC ROUTES FIRST
+===================== */
+
+// All approved appointments
+router.get("/approved", ensureAuthenticated, (req, res, next) => {
+  console.log("🔥 HIT /approved ROUTE");
+  next();
+}, getApprovedAppointments);
+
+/* =====================
+   LIST + CREATE
+===================== */
+
 router.get("/", ensureAuthenticated, getAppointments);
 router.post("/", ensureAuthenticated, createAppointment);
 
+/* =====================
+   SPECIFIC APPOINTMENT
+===================== */
 
+// get specific appointment
+router.get("/:id", ensureAuthenticated, getAppointmentById);
 
+// update appointment
+router.put("/:id", ensureAuthenticated, updateAppointment);
 
-router.use(mockAuth);
+// delete appointment
+router.delete("/:id", ensureAuthenticated, deleteAppointment);
 
-// router.route("/")
-//   .get(getAppointments)
-//   .post(createAppointment);
+/* =====================
+   ADMIN STATUS UPDATE
+===================== */
 
-router.route("/:id")
-  .get(getAppointmentById)
-  .put(updateAppointment)
-  .delete(deleteAppointment);
-
-router.put("/:id/status", updateAppointmentStatus);
+router.put("/:id/status", ensureAuthenticated, updateAppointmentStatus);
 
 export default router;
-

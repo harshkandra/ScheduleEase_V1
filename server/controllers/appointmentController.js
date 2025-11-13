@@ -100,6 +100,34 @@ export const getAppointmentById = async (req, res) => {
   }
 };
 
+
+export const getApprovedAppointments = async (req, res) => {
+  try {
+    const { role, _id } = req.user;
+
+    let filter = {
+      status: "approved",
+      is_deleted: false
+    };
+
+    // Admin → see all approved appointments
+    if (role !== "admin") {
+      filter.user = _id;
+    }
+
+    const appts = await Appointment.find(filter)
+      .populate("user")
+      .populate("slot")
+      .sort({ createdAt: -1 });
+
+    res.json(appts);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+
+
 // PUT /api/appointments/:id  (reschedule/update)
 export const updateAppointment = async (req, res) => {
   try {

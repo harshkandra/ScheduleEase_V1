@@ -55,6 +55,24 @@ const handleAddSlot = (created) => {
   setShowAddSlotModal(false);
 };
 
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        console.log("Logout successful");
+        navigate("/login");
+      } else {
+        const data = await res.json();
+        console.error("Logout failed:", data.message);
+      }
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+  };
 
 
   const stats = [
@@ -94,43 +112,61 @@ const handleAddSlot = (created) => {
     },
   ];
 
-  const todayAppointments = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      role: "Student",
-      topic: "Thesis Defense Approval",
-      time: "3:00 PM",
-      status: "confirmed",
-    },
-    {
-      id: 2,
-      name: "Prof. Michael Chen",
-      role: "Staff",
-      topic: "Department Meeting",
-      time: "10:00 AM",
-      status: "confirmed",
-    },
-  ];
+  // const todayAppointments = [
+  //   {
+  //     id: 1,
+  //     name: "Sarah Johnson",
+  //     role: "Student",
+  //     topic: "Thesis Defense Approval",
+  //     time: "3:00 PM",
+  //     status: "confirmed",
+  //   },
+  //   {
+  //     id: 2,
+  //     name: "Prof. Michael Chen",
+  //     role: "Staff",
+  //     topic: "Department Meeting",
+  //     time: "10:00 AM",
+  //     status: "confirmed",
+  //   },
+  // ];
 
-  const handleLogout = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
 
-      if (res.ok) {
-        console.log("Logout successful");
-        navigate("/login");
-      } else {
-        const data = await res.json();
-        console.error("Logout failed:", data.message);
-      }
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-  };
+   
+  const [appointments, setAppointments] = useState([]);
+
+useEffect(() => {
+  fetch("http://localhost:5000/api/appointments/approved", {
+    credentials: "include",
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setAppointments(data);
+    })
+    .catch((err) => console.error(err));
+}, []);
+
+
+
+ const today = new Date().toISOString().slice(0, 10);
+const todayAppointments = appointments.filter(
+  (appt) => appt.slot?.date === today
+);
+
+// useEffect(() => {
+//   fetch("http://localhost:5000/api/appointments/approved", {
+//     credentials: "include",
+//   })
+//     .then(async (res) => {
+//       if (!res.ok) throw new Error("Failed to fetch");
+//       const data = await res.json();
+//       console.log("APPOINTMENTS FROM DB:", data); // 🔥 ADD THIS
+//       setAppointments(data);
+//     })
+//     .catch((err) => console.error(err));
+// }, []);
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -249,45 +285,58 @@ const handleAddSlot = (created) => {
       )}
 
       {/* === TODAY'S SCHEDULE === */}
-      {activeTab === "today" && (
-        <div className="px-8 mt-6 pb-10">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Today's Appointments</h2>
-          {todayAppointments.map((appt) => (
-            <div
-              key={appt.id}
-              className="bg-white border rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 shadow-sm"
+{activeTab === "today" && (
+  <div className="px-8 mt-6 pb-10">
+    <h2 className="text-lg font-semibold text-gray-700 mb-4">Today's Appointments</h2>
+
+    {todayAppointments.length === 0 ? (
+      <p className="text-gray-500 text-sm">No appointments for today.</p>
+    ) : (
+      todayAppointments.map((appt) => (
+        <div
+          key={appt._id}
+          className="bg-white border rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 shadow-sm"
+        >
+          {/* LEFT SIDE: user + title + role */}
+          <div className="flex flex-col gap-1">
+            <h3 className="text-lg font-semibold text-gray-800">
+              {appt.user?.name || "Unknown User"}
+            </h3>
+
+            <p className="text-sm text-gray-500">{appt.title}</p>
+
+            <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full w-fit mt-1">
+              {appt.role_name}
+            </span>
+          </div>
+
+          {/* TIME */}
+          <div className="text-right mt-3 sm:mt-0">
+            <p className="text-sm text-gray-500">Today</p>
+            <p className="text-sm font-medium text-gray-700">{appt.slot?.time}</p>
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="flex gap-2 mt-3 sm:mt-0">
+            <button
+              onClick={() => setShowRescheduleModal(appt)}
+              className="flex items-center gap-1 border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
             >
-              <div className="flex flex-col gap-1">
-                <h3 className="text-lg font-semibold text-gray-800">{appt.name}</h3>
-                <p className="text-sm text-gray-500">{appt.topic}</p>
-                <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full w-fit mt-1">
-                  {appt.role}
-                </span>
-              </div>
+              <Calendar size={16} /> Reschedule
+            </button>
 
-              <div className="text-right mt-3 sm:mt-0">
-                <p className="text-sm text-gray-500">Today</p>
-                <p className="text-sm font-medium text-gray-700">{appt.time}</p>
-              </div>
-
-              <div className="flex gap-2 mt-3 sm:mt-0">
-                <button
-                  onClick={() => setShowRescheduleModal(appt)}
-                  className="flex items-center gap-1 border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
-                >
-                  <Calendar size={16} /> Reschedule
-                </button>
-                <button
-                  onClick={() => setShowCancelModal(appt)}
-                  className="flex items-center gap-1 border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
-                >
-                  <X size={16} /> Cancel
-                </button>
-              </div>
-            </div>
-          ))}
+            <button
+              onClick={() => setShowCancelModal(appt)}
+              className="flex items-center gap-1 border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
+            >
+              <X size={16} /> Cancel
+            </button>
+          </div>
         </div>
-      )}
+      ))
+    )}
+  </div>
+)}
 
       {/* === DIRECTOR’S CALENDAR === */}
       {activeTab === "calendar" && (

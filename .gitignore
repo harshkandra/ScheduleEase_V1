@@ -23,6 +23,7 @@ pnpm-lock.yaml
 .env.test.local
 .env.production.local
 /server/.env
+/server/.env.example
 /client/.env
 
 # macOS and Windows specific files

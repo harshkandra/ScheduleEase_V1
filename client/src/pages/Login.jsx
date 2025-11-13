@@ -99,8 +99,8 @@ export default function Login() {
 
             {/* Administrator */}
             <button
-              //onClick={() => handleOAuthLogin("admin")}
-              onClick={handleadm}
+              onClick={() => handleOAuthLogin("admin")}
+              //onClick={handleadm}
               className={`w-full border flex items-center justify-between px-4 py-3 rounded-xl transition ${
                 selectedRole === "admin"
                   ? "border-yellow-500 bg-yellow-50"

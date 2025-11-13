@@ -15,10 +15,10 @@ export const oauthLogin = async (req, res) => {
 
     if (!user) {
       const domain = email.split("@")[1];
-      let role = "external";
+      let role = "external user";
 
       if (adminEmails.includes(email)) role = "admin";
-      else if (domain === "nitc.ac.in") role = "internal";
+      else if (domain === "nitc.ac.in") role = "internal user";
 
       user = await User.create({
         name,

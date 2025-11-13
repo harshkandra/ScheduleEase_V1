@@ -6,7 +6,7 @@ import cors from "cors"; // ✅ Add this import
 import { connectDB } from "./config/db.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import slotRoutes from "./routes/slotRoutes.js";
-import userRoutes from "./routes/userRoutes.js";
+// import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import "./config/passport.js"; // 👈 load passport config
 
@@ -52,20 +52,20 @@ app.use(
 app.use(express.json());
 
 // ✅ Setup session middleware (required for passport)
-app.use(
-  session({
-    name: "connect.sid", // must match clearCookie name
-    secret: process.env.SESSION_SECRET || "keyboard cat",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: false, // true only in production HTTPS
-      sameSite: "lax",
-      path: "/", // must match clearCookie path
-    },
-  })
-);
+// app.use(
+//   session({
+//     name: "connect.sid", // must match clearCookie name
+//     secret: process.env.SESSION_SECRET || "keyboard cat",
+//     resave: false,
+//     saveUninitialized: false,
+//     cookie: {
+//       httpOnly: true,
+//       secure: false, // true only in production HTTPS
+//       sameSite: "lax",
+//       path: "/", // must match clearCookie path
+//     },
+//   })
+// );
 
 // ✅ Initialize Passport (AFTER session)
 app.use(passport.initialize());
@@ -74,7 +74,7 @@ app.use(passport.session());
 // ✅ Routes (AFTER passport + CORS)
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/slots", slotRoutes);
-app.use("/api/users", userRoutes);
+//app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 
 // ✅ Health check
@@ -85,6 +85,10 @@ app.use((err, req, res, next) => {
   console.error("Error:", err);
   res.status(500).json({ message: err.message });
 });
+
+console.log("CONNECTED TO DB:", process.env.MONGO_URI);
+console.log("🔗 Using Mongo URI:", process.env.MONGO_URI);
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
