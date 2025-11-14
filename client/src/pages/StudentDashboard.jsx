@@ -103,7 +103,7 @@ const refreshAppointments = async () => {
 
       const datetime =
         slotInfo && slotInfo.date && slotInfo.timeStart
-          ? `${slotInfo.date}T${slotInfo.timeStart}:00.000Z`
+          ? `${slotInfo.date}T${slotInfo.timeStart}:00.000`
           : a.datetime || new Date().toISOString();
 
       return {

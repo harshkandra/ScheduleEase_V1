@@ -25,6 +25,7 @@ export const getAppointments = async (req, res) => {
 
 
 // ---------------------- CREATE APPOINTMENT ----------------------
+<<<<<<< HEAD
 export const createAppointment = async (req, res) => {
   try {
     const { slotId, title, description } = req.body;
@@ -56,6 +57,113 @@ export const createAppointment = async (req, res) => {
 
     slot.isBooked = true;
     await slot.save();
+=======
+// export const createAppointment = async (req, res) => {
+//   try {
+//     const { slotId, title, description } = req.body;
+//     if (!req.user) return res.status(401).json({ message: "Authentication required" });
+
+//     const role_name = req.user.role;
+
+//     if (!slotId || !title || !description)
+//       return res.status(400).json({ message: "Slot, title and description required" });
+
+//     if (role_name === "admin")
+//       return res.status(403).json({ message: "Admin cannot book appointments" });
+
+//     const slot = await Slot.findById(slotId);
+//     if (!slot) return res.status(404).json({ message: "Slot not found" });
+
+//     if (slot.isBooked) return res.status(400).json({ message: "Slot unavailable" });
+
+//     const status = role_name === "internal user" ? "approved" : "pending";
+
+//     const appt = await Appointment.create({
+//       user: req.user._id,
+//       slot: slot._id,
+//       title,
+//       description,
+//       role_name,
+//       status,
+//     });
+
+//     slot.isBooked = true;
+//     await slot.save();
+
+//     const populated = await Appointment.findById(appt._id)
+//       .populate("slot")
+//       .populate("user");
+
+//     return res.status(201).json(populated);
+
+//   } catch (err) {
+//     console.error("createAppointment error:", err);
+//     return res.status(500).json({ message: err.message });
+//   }
+// };
+
+// NEW LOGIC FOR VIRTUAL SLOTS
+
+// Utility: add minutes without timezone issues
+function addMinutes(timeStr, minutes) {
+  let [h, m] = timeStr.split(":").map(Number);
+  let total = h * 60 + m + Number(minutes);
+
+  let newH = Math.floor(total / 60);
+  let newM = total % 60;
+
+  return `${String(newH).padStart(2, "0")}:${String(newM).padStart(2, "0")}`;
+}
+
+export const createAppointment = async (req, res) => {
+  try {
+    const { date, startTime, duration, title, description } = req.body;
+
+    if (!date || !startTime || !duration || !title || !description) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    if (!req.user)
+      return res.status(401).json({ message: "Authentication required" });
+
+    const role_name = req.user.role;
+
+    // 🔥 FIX: Compute endTime without using Date() (no timezone shifts)
+    const endTime = addMinutes(startTime, duration);
+
+    // Check if director is available in any parent slot
+    const parentSlot = await Slot.findOne({
+      date,
+      timeStart: { $lte: startTime },
+      timeEnd: { $gte: endTime },
+    });
+
+    if (!parentSlot) {
+      return res.status(400).json({ message: "Director not available at this time" });
+    }
+
+    // Create actual booked slot
+    const realSlot = await Slot.create({
+      date,
+      timeStart: startTime,
+      timeEnd: endTime,
+      isBooked: true,
+      duration
+    });
+
+    // Determine status
+    const status = role_name === "internal user" ? "approved" : "pending";
+
+    // Create appointment
+    const appt = await Appointment.create({
+      user: req.user._id,
+      slot: realSlot._id,
+      title,
+      description,
+      role_name, // send consistent role name
+      status,
+    });
+>>>>>>> adithya/adminedits
 
     const populated = await Appointment.findById(appt._id)
       .populate("slot")
@@ -70,6 +178,20 @@ export const createAppointment = async (req, res) => {
 };
 
 
+<<<<<<< HEAD
+=======
+
+
+function computeEndTime(start, dur) {
+  const [h, m] = start.split(":").map(Number);
+  const total = h * 60 + m + Number(dur);
+  const eh = String(Math.floor(total / 60)).padStart(2, "0");
+  const em = String(total % 60).padStart(2, "0");
+  return `${eh}:${em}`;
+}
+
+
+>>>>>>> adithya/adminedits
 // ---------------------- GET BY ID ----------------------
 export const getAppointmentById = async (req, res) => {
   try {

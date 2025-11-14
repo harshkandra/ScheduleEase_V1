@@ -1,4 +1,5 @@
 import express from "express";
+import { upload, gridfsBucket } from "../utils/gridfs.js";
 import {
   getAppointments,
   createAppointment,
@@ -65,5 +66,52 @@ router.patch("/:id/approve", ensureAuthenticated, (req, res, next) => {
 }, updateAppointmentStatus);
 router.patch("/:id/reject", ensureAuthenticated, updateAppointmentStatus);
 
+
+
+// Upload a file and attach it to appointment
+router.post("/:id/attachment", upload.single("file"), async (req, res) => {
+  try {
+    const fileId = req.file.id;
+
+    await Appointment.findByIdAndUpdate(req.params.id, {
+      attachment: fileId,
+    });
+
+    res.json({
+      success: true,
+      message: "Attachment uploaded!",
+      fileId,
+    });
+  } catch (err) {
+    console.error("Upload error:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get("/attachment/:fileId", async (req, res) => {
+  try {
+    const fileId = new mongoose.Types.ObjectId(req.params.fileId);
+
+    const stream = gridfsBucket.openDownloadStream(fileId);
+    stream.on("error", () => {
+      return res.status(404).json({ message: "File not found" });
+    });
+
+    stream.pipe(res);
+  } catch (err) {
+    return res.status(400).json({ message: "Invalid file id" });
+  }
+});
+
+router.delete("/attachment/:fileId", async (req, res) => {
+  try {
+    const id = new mongoose.Types.ObjectId(req.params.fileId);
+    await gridfsBucket.delete(id);
+
+    res.json({ message: "Attachment deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete attachment" });
+  }
+});
 
 export default router;

@@ -1,4 +1,6 @@
 import Slot from "../models/Slot.js";
+import Appointment from "../models/Appointment.js";
+
 
 // GET /api/slots
 export const getSlots = async (req, res) => {
@@ -125,6 +127,97 @@ export const deleteSlot = async (req, res) => {
     await Slot.findByIdAndDelete(req.params.id);
     res.json({ message: "Slot deleted" });
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+//virtual slot division logic
+// --- Helpers ---
+const toMinutes = (time) => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+};
+
+const toTimeString = (mins) => {
+  const h = String(Math.floor(mins / 60)).padStart(2, "0");
+  const m = String(mins % 60).padStart(2, "0");
+  return `${h}:${m}`;
+};
+
+const overlaps = (aStart, aEnd, bStart, bEnd) => {
+  return aStart < bEnd && bStart < aEnd;
+};
+
+// --- MAIN ---
+export const getVirtualAvailableSlots = async (req, res) => {
+  try {
+    const { date, duration } = req.query;
+
+    if (!date || !duration)
+      return res.status(400).json({ message: "date and duration required" });
+
+    const dur = Number(duration);
+
+    // -------------------------------------------------------
+    // 1️⃣ FETCH ONLY ADMIN AVAILABILITY SLOTS
+    //    Ignore real bookings completely
+    // -------------------------------------------------------
+    const adminSlots = await Slot.find({
+      date,
+      isBooked: false,   // <-- FIX: only real availability
+    });
+
+    // -------------------------------------------------------
+    // 2️⃣ FETCH ALL APPOINTMENTS THAT DAY (booked periods)
+    // -------------------------------------------------------
+    const appointments = await Appointment.find({
+      is_deleted: false,
+    }).populate("slot");
+
+    const result = [];
+
+    // -------------------------------------------------------
+    // 3️⃣ GENERATE VIRTUAL SLOTS INSIDE ADMIN SLOTS
+    // -------------------------------------------------------
+    for (const s of adminSlots) {
+      let start = toMinutes(s.timeStart);
+      const end = toMinutes(s.timeEnd);
+
+      while (start + dur <= end) {
+        const vStart = start;
+        const vEnd = start + dur;
+
+        // Check overlap with existing booked slots
+        let isTaken = false;
+
+        for (const a of appointments) {
+          if (!a.slot || a.slot.date !== date) continue;
+
+          const aStart = toMinutes(a.slot.timeStart);
+          const aEnd = toMinutes(a.slot.timeEnd);
+
+          if (overlaps(vStart, vEnd, aStart, aEnd)) {
+            isTaken = true;
+            break;
+          }
+        }
+
+        // If not overlapping → AVAILABLE
+        if (!isTaken) {
+          result.push({
+            start: toTimeString(vStart),
+            end: toTimeString(vEnd),
+          });
+        }
+
+        // move pointer forward by duration
+        start += dur;
+      }
+    }
+
+    return res.json(result);
+  } catch (err) {
+    console.error("Virtual slot error:", err);
     res.status(500).json({ message: err.message });
   }
 };
