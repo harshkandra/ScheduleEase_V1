@@ -19,6 +19,7 @@ import {
 import CancelAppointmentModal from "../components/CancelAppointmentModal";
 import RescheduleAppointmentModal from "../components/RescheduleAppointmentModal";
 import AddTimeSlotModal from "../components/AddTimeSlotModal";
+import AdminViewAppointmentModal from "../components/AdminViewAppointmentModal";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -27,6 +28,8 @@ export default function AdminDashboard() {
   const [showRescheduleModal, setShowRescheduleModal] = useState(null);
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [timeSlots, setTimeSlots] = useState([]);
+  const [viewModal, setViewModal] = useState(null);
+
 
 useEffect(() => {
   const fetchSlots = async () => {
@@ -232,7 +235,7 @@ const handleAddSlot = (created) => {
                 </div>
 
                 <div className="flex gap-2 mt-3 sm:mt-0">
-                  <button className="flex items-center gap-1 border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50">
+                  <button  onClick={() => setViewModal(req)} className="flex items-center gap-1 border border-gray-300 px-3 py-2 rounded-lg text-sm hover:bg-gray-50">
                     <Eye size={16} /> View
                   </button>
                   <button className="flex items-center gap-1 bg-green-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-600">
@@ -391,6 +394,14 @@ const handleAddSlot = (created) => {
           }}
         />
       )}
+
+{viewModal && (
+  <AdminViewAppointmentModal
+    appointment={viewModal}
+    onClose={() => setViewModal(null)}
+  />
+)}
+
 
       {showRescheduleModal && (
         <RescheduleAppointmentModal
