@@ -1,7 +1,6 @@
 import Slot from "../models/Slot.js";
 import Appointment from "../models/Appointment.js";
 
-
 // GET /api/slots
 export const getSlots = async (req, res) => {
   try {
@@ -132,15 +131,14 @@ export const deleteSlot = async (req, res) => {
 };
 
 //virtual slot division logic
-// --- Helpers ---
 const toMinutes = (time) => {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
 };
 
 const toTimeString = (mins) => {
-  const h = String(Math.floor(mins / 60)).padStart(2, "0");
-  const m = String(mins % 60).padStart(2, "0");
+  const h = Math.floor(mins / 60).toString().padStart(2, "0");
+  const m = (mins % 60).toString().padStart(2, "0");
   return `${h}:${m}`;
 };
 
@@ -148,7 +146,6 @@ const overlaps = (aStart, aEnd, bStart, bEnd) => {
   return aStart < bEnd && bStart < aEnd;
 };
 
-// --- MAIN ---
 export const getVirtualAvailableSlots = async (req, res) => {
   try {
     const { date, duration } = req.query;
@@ -158,27 +155,16 @@ export const getVirtualAvailableSlots = async (req, res) => {
 
     const dur = Number(duration);
 
-    // -------------------------------------------------------
-    // 1️⃣ FETCH ONLY ADMIN AVAILABILITY SLOTS
-    //    Ignore real bookings completely
-    // -------------------------------------------------------
-    const adminSlots = await Slot.find({
-      date,
-      isBooked: false,   // <-- FIX: only real availability
-    });
+    // 1. Admin slots for the day
+    const adminSlots = await Slot.find({ date });
 
-    // -------------------------------------------------------
-    // 2️⃣ FETCH ALL APPOINTMENTS THAT DAY (booked periods)
-    // -------------------------------------------------------
-    const appointments = await Appointment.find({
-      is_deleted: false,
-    }).populate("slot");
+    // 2. Existing booked appointments
+    const appointments = await Appointment.find({ is_deleted: false })
+      .populate("slot");
 
     const result = [];
 
-    // -------------------------------------------------------
-    // 3️⃣ GENERATE VIRTUAL SLOTS INSIDE ADMIN SLOTS
-    // -------------------------------------------------------
+    // 3. Generate virtual slots
     for (const s of adminSlots) {
       let start = toMinutes(s.timeStart);
       const end = toMinutes(s.timeEnd);
@@ -187,11 +173,10 @@ export const getVirtualAvailableSlots = async (req, res) => {
         const vStart = start;
         const vEnd = start + dur;
 
-        // Check overlap with existing booked slots
         let isTaken = false;
 
         for (const a of appointments) {
-          if (!a.slot || a.slot.date !== date) continue;
+          if (a.slot?.date !== date) continue;
 
           const aStart = toMinutes(a.slot.timeStart);
           const aEnd = toMinutes(a.slot.timeEnd);
@@ -202,7 +187,6 @@ export const getVirtualAvailableSlots = async (req, res) => {
           }
         }
 
-        // If not overlapping → AVAILABLE
         if (!isTaken) {
           result.push({
             start: toTimeString(vStart),
@@ -210,7 +194,6 @@ export const getVirtualAvailableSlots = async (req, res) => {
           });
         }
 
-        // move pointer forward by duration
         start += dur;
       }
     }

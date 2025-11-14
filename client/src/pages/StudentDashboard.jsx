@@ -54,78 +54,69 @@ const refreshSlots = async () => {
       method: "GET",
       credentials: "include",
     });
+
     if (!res.ok) return;
 
     const data = await res.json();
 
+    // group slots by date
     const grouped = {};
     data.forEach((s) => {
-      const d = s.date;
-      if (!grouped[d]) grouped[d] = [];
-      grouped[d].push({
-        id: s._id || s.id,
+      if (!grouped[s.date]) grouped[s.date] = [];
+      grouped[s.date].push({
+        id: s._id,
+        date: s.date,
         timeStart: s.timeStart,
         timeEnd: s.timeEnd,
-        isBooked: !!(s.isBooked || s.is_booked),
-        date: s.date,
+        isBooked: !!s.isBooked,
         raw: s,
       });
     });
 
     setSlotsMap(grouped);
   } catch (err) {
-    console.error("Refresh slots error:", err);
+    console.error("refreshSlots ERROR:", err);
   }
 };
 
+
 const refreshAppointments = async () => {
   try {
-    const res = await fetch("http://localhost:5000/api/appointments?mine=true", {
-      method: "GET",
-      credentials: "include",
-    });
+    const res = await fetch(
+      "http://localhost:5000/api/appointments?mine=true",
+      { credentials: "include" }
+    );
+
     if (!res.ok) return;
+
     const data = await res.json();
 
     const mapped = data.map((a) => {
-      const statusStr = (a.status || "").toString();
-      let slotInfo = null;
-
-      if (a.slot && typeof a.slot === "object") {
-        slotInfo = {
-          id: a.slot._id || a.slot.id,
-          date: a.slot.date,
-          timeStart: a.slot.timeStart,
-          timeEnd: a.slot.timeEnd,
-          isBooked: !!(a.slot.isBooked || a.slot.is_booked),
-        };
-      }
+      const slot = a.slot;
 
       const datetime =
-        slotInfo && slotInfo.date && slotInfo.timeStart
-          ? `${slotInfo.date}T${slotInfo.timeStart}:00.000`
-          : a.datetime || new Date().toISOString();
+        slot?.date && slot?.timeStart
+          ? `${slot.date}T${slot.timeStart}:00`
+          : new Date().toISOString();
 
       return {
         id: a._id,
         title: a.title,
         desc: a.description,
         datetime,
-        status: statusStr.charAt(0).toUpperCase() + statusStr.slice(1),
+        status: a.status.charAt(0).toUpperCase() + a.status.slice(1),
         raw: a,
-        slot: slotInfo,
+        slot,
       };
     });
 
-    const approved = mapped.filter(
-      (m) => String(m.status || "").toLowerCase() === "approved"
-    );
-
-    setAppointments(approved);
+    // student dashboard: only approved shown
+    setAppointments(mapped.filter((a) => a.status === "Approved"));
   } catch (err) {
-    console.error("Refresh appointments error:", err);
+    console.error("refreshAppointments ERROR:", err);
   }
 };
+
 
 
   // --- Load slots from backend and build slotsMap ---

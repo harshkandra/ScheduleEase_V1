@@ -61,8 +61,8 @@ export default function Login() {
           <div className="space-y-3 mt-4">
             {/* NITC User */}
             <button
-              //onClick={() => handleOAuthLogin("internal user")}
-              onClick={handleint}
+              onClick={() => handleOAuthLogin("internal user")}
+              //onClick={handleint}
               className={`w-full border flex items-center justify-between px-4 py-3 rounded-xl transition ${
                 selectedRole === "internal user"
                   ? "border-blue-500 bg-blue-50"
