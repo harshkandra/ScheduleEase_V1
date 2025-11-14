@@ -95,9 +95,9 @@ const refreshAppointments = async () => {
       const slot = a.slot;
 
       const datetime =
-        slot?.date && slot?.timeStart
-          ? `${slot.date}T${slot.timeStart}:00`
-          : new Date().toISOString();
+        slotInfo && slotInfo.date && slotInfo.timeStart
+          ? `${slotInfo.date}T${slotInfo.timeStart}:00.000`
+          : a.datetime || new Date().toISOString();
 
       return {
         id: a._id,

@@ -84,21 +84,50 @@ export default function ExternalDashboard() {
 
   const prevMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  
+function normalizeAppointment(a) {
 
+  const date = a.slot?.date;
+  const time = a.slot?.timeStart;
+
+  const datetime = date && time 
+    ? `${date}T${time}:00`
+    : new Date().toISOString();
+
+  return {
+    id: a._id || a.id,
+    title: a.title || "Appointment",
+    desc: a.description || "",
+    datetime,
+    status: a.status ? 
+      a.status.charAt(0).toUpperCase() + a.status.slice(1) :
+      "Pending",
+    raw: a
+  };
+}
   // Book modal
   const [modalPrefill, setModalPrefill] = useState(false);
   const openModal = (pref = { date: "", time: "" }) => setModalPrefill(pref);
   const closeModal = () => setModalPrefill(false);
 
-  const addAppointment = (appt) => {
-    setAppointments((prev) => [appt, ...prev]);
-    const dateISO = appt.datetime.slice(0, 10);
-    const time = appt.datetime.slice(11, 16);
-    setSlotsMap((prev) => {
-      const arr = prev[dateISO] ? prev[dateISO].filter((t) => t !== time) : [];
-      return { ...prev, [dateISO]: arr };
-    });
-  };
+
+
+const addAppointment = (appt) => {
+
+  const normalized = normalizeAppointment(appt);
+
+  setAppointments((prev) => [normalized, ...prev]);
+
+  const dateISO = normalized.datetime.slice(0, 10);
+  const time = normalized.datetime.slice(11, 16);
+
+  setSlotsMap((prev) => {
+    const arr = prev[dateISO] ? prev[dateISO].filter((t) => t !== time) : [];
+    return { ...prev, [dateISO]: arr };
+  });
+};
+
+
 
   // Cancel modal
   const [cancelModal, setCancelModal] = useState(null);
@@ -167,6 +196,7 @@ export default function ExternalDashboard() {
 //     });
 //   });
 // });
+
 
   return (
     <div className="min-h-screen bg-gray-50">

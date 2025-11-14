@@ -28,32 +28,102 @@ export default function AdminDashboard() {
   const [showAddSlotModal, setShowAddSlotModal] = useState(false);
   const [timeSlots, setTimeSlots] = useState([]);
 
-useEffect(() => {
-  const fetchSlots = async () => {
-    const today = new Date().toISOString().split("T")[0];
-    const res = await axios.get(`http://localhost:5000/api/slots?date=${today}`);
-    setTimeSlots(res.data);
-  };
+// useEffect(() => {
+//   const fetchSlots = async () => {
+//     try {
+//       const res = await axios.get("http://localhost:5000/api/slots");
+//       setTimeSlots(
+//         res.data.sort(
+//           (a, b) =>
+//             a.date.localeCompare(b.date) ||
+//             a.timeStart.localeCompare(b.timeStart)
+//         )
+//       );
+//     } catch (err) {
+//       console.error("Failed to fetch slots:", err);
+//     }
+//   };
 
+//   fetchSlots();
+// }, []);
+
+const fetchSlots = async () => {
+  try {
+    const res = await axios.get("http://localhost:5000/api/slots", {
+      withCredentials: true,
+    });
+
+    // Sort
+    const sorted = res.data.sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        a.timeStart.localeCompare(b.timeStart)
+    );
+
+    // Group
+    const grouped = {};
+    sorted.forEach((slot) => {
+      if (!grouped[slot.date]) grouped[slot.date] = [];
+      grouped[slot.date].push(slot);
+    });
+
+    setTimeSlots(grouped);
+  } catch (err) {
+    console.error("Failed to fetch slots:", err);
+  }
+};
+
+
+useEffect(() => {
   fetchSlots();
 }, []);
 
+// const handleAddSlot = (created) => {
+//   // created may be the slot itself, or { slot: ... }, or similar.
+//   const slot = created?.slot ?? created;
 
-const handleAddSlot = (created) => {
-  // created may be the slot itself, or { slot: ... }, or similar.
-  const slot = created?.slot ?? created;
+//   if (!slot) {
+//     // fallback: refresh list from server
+//     fetchSlots(); // see note below — make sure fetchSlots is declared
+//     setShowAddSlotModal(false);
+//     return;
+//   }
 
-  if (!slot) {
-    // fallback: refresh list from server
-    fetchSlots(); // see note below — make sure fetchSlots is declared
-    setShowAddSlotModal(false);
-    return;
-  }
+//   // append slot exactly as returned by backend:
+//   setTimeSlots(prev => [...prev, slot]);
+//   setShowAddSlotModal(false);
+// };
 
-  // append slot exactly as returned by backend:
-  setTimeSlots(prev => [...prev, slot]);
-  setShowAddSlotModal(false);
+const handleAddSlot = async () => {
+  await fetchSlots();          // refresh all slots from DB
+  setShowAddSlotModal(false);  // close modal
 };
+
+const handleDeleteSlot = async (id) => {
+  await axios.delete(`http://localhost:5000/api/slots/${id}`, {
+    withCredentials: true,
+  });
+
+  await fetchSlots();
+};
+
+
+// const handleDeleteSlot = async (slotId) => {
+//   try {
+//     const res = await axios.delete(
+//       `http://localhost:5000/api/slots/${slotId}`,
+//       { withCredentials: true }
+//     );
+
+//     if (res.status === 200) {
+//       // Remove the deleted slot from UI
+//       setTimeSlots(prev => prev.filter(slot => slot._id !== slotId));
+//     }
+//   } catch (err) {
+//     console.error("Error deleting slot:", err);
+//   }
+// };
+
 
   const handleLogout = async () => {
     try {
@@ -86,57 +156,7 @@ const handleAddSlot = (created) => {
     { title: "Total Users", value: 156, change: "+8 new", icon: <Users className="text-purple-500" /> },
   ];
 
-  const requests = [
-    {
-      id: 1,
-      name: "Rahul Sharma",
-      email: "rahul@example.com",
-      role: "External Visitor",
-      topic: "Industry Collaboration Discussion",
-      requested: "Dec 28, 2024 at 2:00 PM",
-      submitted: "2 hours ago",
-    },
-    {
-      id: 2,
-      name: "Dr. Priya Nair",
-      email: "priya@company.com",
-      role: "External Visitor",
-      topic: "Research Partnership Proposal",
-      requested: "Dec 30, 2024 at 10:30 AM",
-      submitted: "5 hours ago",
-    },
-    {
-      id: 3,
-      name: "Ankit Kumar",
-      email: "ankit.staff@nitc.ac.in",
-      role: "Staff",
-      topic: "Budget Discussion",
-      requested: "Jan 2, 2025 at 11:00 AM",
-      submitted: "1 day ago",
-    },
-  ];
 
-  // const todayAppointments = [
-  //   {
-  //     id: 1,
-  //     name: "Sarah Johnson",
-  //     role: "Student",
-  //     topic: "Thesis Defense Approval",
-  //     time: "3:00 PM",
-  //     status: "confirmed",
-  //   },
-  //   {
-  //     id: 2,
-  //     name: "Prof. Michael Chen",
-  //     role: "Staff",
-  //     topic: "Department Meeting",
-  //     time: "10:00 AM",
-  //     status: "confirmed",
-  //   },
-  // ];
-
-
-   
 const [appointments, setAppointments] = useState([]);
 
 useEffect(() => {
@@ -415,13 +435,13 @@ const handleReject = async (id) => {
     <div className="bg-white border rounded-xl p-6 shadow-sm">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-gray-700 font-medium text-base">
-          Available Time Slots
+          Current Time Slots
         </h3>
         <button
           onClick={() => setShowAddSlotModal(true)}
           className="flex items-center gap-2 bg-sky-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-sky-700 transition"
         >
-          <Plus size={16} /> Block Time Slot
+          <Plus size={16} /> Add Time Slot
         </button>
       </div>
 
@@ -429,15 +449,28 @@ const handleReject = async (id) => {
         Manage the Director's availability for appointments
       </p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        {timeSlots.map((slot, index) => (
+      <div className="space-y-6">
+  {Object.keys(timeSlots).map((date) => (
+    <div key={date}>
+      {/* Date Header */}
+      <h3 className="text-gray-700 font-semibold mb-2 text-base">
+        📅 {date}
+      </h3>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {timeSlots[date].map((slot) => (
           <div
-            key={slot._id || index}
-            className="flex items-center justify-between border rounded-lg px-4 py-3 bg-gray-50"
+            key={slot._id}
+            className="flex justify-between items-center border rounded-lg px-4 py-3 bg-gray-50"
           >
-            <span className="text-gray-700 font-medium text-sm">
-              {`${slot.date} | ${slot.timeStart} - ${slot.timeEnd}`}
-            </span>
+            {/* TIME RANGE */}
+            <div>
+              <p className="text-gray-700 font-medium text-sm">
+                {slot.timeStart} - {slot.timeEnd}
+              </p>
+            </div>
+
+            {/* STATUS */}
             <span
               className={`px-3 py-1 rounded-full text-xs font-medium ${
                 slot.isBooked
@@ -447,9 +480,20 @@ const handleReject = async (id) => {
             >
               {slot.isBooked ? "Booked" : "Available"}
             </span>
+
+            {/* DELETE BUTTON */}
+            <button
+              className="text-xs text-white bg-red-500 px-2 py-1 rounded hover:bg-red-600"
+              onClick={() => handleDeleteSlot(slot._id)}
+            >
+              Delete
+            </button>
           </div>
         ))}
       </div>
+    </div>
+  ))}
+</div>
     </div>
   </div>
 )}

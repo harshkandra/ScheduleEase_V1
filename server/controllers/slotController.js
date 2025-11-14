@@ -131,6 +131,7 @@ export const deleteSlot = async (req, res) => {
 };
 
 //virtual slot division logic
+// --- Helpers ---
 const toMinutes = (time) => {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
@@ -146,6 +147,7 @@ const overlaps = (aStart, aEnd, bStart, bEnd) => {
   return aStart < bEnd && bStart < aEnd;
 };
 
+// --- MAIN ---
 export const getVirtualAvailableSlots = async (req, res) => {
   try {
     const { date, duration } = req.query;
@@ -187,6 +189,7 @@ export const getVirtualAvailableSlots = async (req, res) => {
           }
         }
 
+        // If not overlapping → AVAILABLE
         if (!isTaken) {
           result.push({
             start: toTimeString(vStart),
@@ -194,6 +197,7 @@ export const getVirtualAvailableSlots = async (req, res) => {
           });
         }
 
+        // move pointer forward by duration
         start += dur;
       }
     }

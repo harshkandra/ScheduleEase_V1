@@ -21,6 +21,11 @@ const appointmentSchema = new mongoose.Schema({
 
   is_deleted: { type: Boolean, default: false },
 
+  attachment: {
+  type: mongoose.Schema.Types.ObjectId,
+  default: null,
+},
+
 }, { timestamps: true });
 
 export default mongoose.model("Appointment", appointmentSchema);
